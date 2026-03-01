@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.env/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data (large raw files only)
+data/raw/
+*.csv.gz
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Large model files (>100MB — GitHub limit)
+models/random_forest.joblib
+
+# Secrets
+.env
