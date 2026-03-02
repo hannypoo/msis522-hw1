@@ -242,18 +242,7 @@ with tab2:
                               yaxis_title="User-Days", height=400)
             st.plotly_chart(fig, use_container_width=True)
 
-    # Top Foods
-    st.subheader("Top 20 Most Tracked Foods")
-    food_freq = df[food_cols_only].sum().sort_values(ascending=False).head(20)
-    food_names = [c.replace("food_", "").replace("_", " ").title() for c in food_freq.index]
-    fig = go.Figure(data=[
-        go.Bar(y=food_names[::-1], x=food_freq.values[::-1],
-               orientation="h", marker_color=px.colors.sequential.YlOrRd_r[:20])
-    ])
-    fig.update_layout(title="Most Tracked Foods", xaxis_title="User-Days", height=500)
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Lifestyle Factors — the key finding
+    # ── Lifestyle Factors — THE KEY FINDING (shown first) ──
     st.subheader("Lifestyle Factors & Flare Risk (Key Finding)")
 
     all_factors_path = DATA_DIR / "within_user_all_factors.csv"
@@ -308,79 +297,101 @@ with tab2:
     else:
         st.info("Lifestyle analysis not yet available. Run the notebook first.")
 
+    # ── Lifestyle Tag Frequency ──
+    st.subheader("How Often Are Lifestyle Tags Tracked?")
+    tag_cols = [c for c in feature_cols if c.startswith("tag_")]
+    tag_freq = df[tag_cols].sum().sort_values(ascending=False)
+    tag_names_freq = [c.replace("tag_", "").replace("_", " ").title() for c in tag_freq.index]
+    fig = go.Figure(data=[
+        go.Bar(y=tag_names_freq[::-1], x=tag_freq.values[::-1],
+               orientation="h", marker_color=["#9b59b6"] * len(tag_freq))
+    ])
+    fig.update_layout(title="Lifestyle Tags — Tracking Frequency", xaxis_title="User-Days", height=450)
+    st.plotly_chart(fig, use_container_width=True)
+
     st.markdown("---")
 
-    # Within-User Food & Flare Analysis
-    st.subheader("Individual Foods & Flare Risk (Null Result)")
+    # ── Food Analysis (de-emphasized — null result) ──
+    with st.expander("Individual Foods & Flare Risk (Null Result — click to expand)", expanded=False):
+        st.markdown(
+            "This chart shows the **within-user** flare rate difference for each food: comparing the **same users'** "
+            "flare rates on days they ate a food vs. days they didn't. This controls for Simpson's Paradox, where "
+            "differences in *who* tracks a food can make it falsely appear protective or harmful."
+        )
 
-    st.markdown(
-        "This chart shows the **within-user** flare rate difference for each food: comparing the **same users'** "
-        "flare rates on days they ate a food vs. days they didn't. This controls for Simpson's Paradox, where "
-        "differences in *who* tracks a food can make it falsely appear protective or harmful."
-    )
+        st.markdown(
+            "**After correcting for multiple comparisons (50 tests), no food reaches statistical significance.** "
+            "Faded bars had uncorrected p < 0.05 but are likely false positives. Gray bars were not significant "
+            "even before correction."
+        )
 
-    st.markdown(
-        "**After correcting for multiple comparisons (50 tests), no food reaches statistical significance.** "
-        "Faded bars had uncorrected p < 0.05 but are likely false positives. Gray bars were not significant "
-        "even before correction."
-    )
+        wu_path = DATA_DIR / "within_user_food_analysis.csv"
+        if wu_path.exists():
+            wu_df = pd.read_csv(wu_path).sort_values("within_diff")
 
-    wu_path = DATA_DIR / "within_user_food_analysis.csv"
-    if wu_path.exists():
-        wu_df = pd.read_csv(wu_path).sort_values("within_diff")
+            has_correction_cols = "sig_uncorrected" in wu_df.columns
 
-        has_correction_cols = "sig_uncorrected" in wu_df.columns
-
-        bar_colors = []
-        for _, row in wu_df.iterrows():
-            if has_correction_cols:
-                if row.get("sig_corrected", False) or row.get("sig_fdr", False):
-                    bar_colors.append("#e74c3c" if row["within_diff"] > 0 else "#2ecc71")
-                elif row.get("sig_uncorrected", False):
-                    bar_colors.append("#f5b7b1" if row["within_diff"] > 0 else "#abebc6")
+            bar_colors = []
+            for _, row in wu_df.iterrows():
+                if has_correction_cols:
+                    if row.get("sig_corrected", False) or row.get("sig_fdr", False):
+                        bar_colors.append("#e74c3c" if row["within_diff"] > 0 else "#2ecc71")
+                    elif row.get("sig_uncorrected", False):
+                        bar_colors.append("#f5b7b1" if row["within_diff"] > 0 else "#abebc6")
+                    else:
+                        bar_colors.append("#cccccc")
                 else:
                     bar_colors.append("#cccccc")
-            else:
-                bar_colors.append("#cccccc")
 
-        hover_text = [
-            f"{row['name']}<br>Diff: {row['within_diff']:+.1%}<br>"
-            f"p-value: {row['p_value']:.4f}<br>"
-            f"Users: {row['n_users']}<br>"
-            f"Eating days: {row['on_days']}<br>"
-            f"{'Uncorrected p<0.05 (likely false positive)' if row.get('sig_uncorrected', False) and not row.get('sig_corrected', False) else 'Not significant'}"
-            for _, row in wu_df.iterrows()
-        ]
+            hover_text = [
+                f"{row['name']}<br>Diff: {row['within_diff']:+.1%}<br>"
+                f"p-value: {row['p_value']:.4f}<br>"
+                f"Users: {row['n_users']}<br>"
+                f"Eating days: {row['on_days']}<br>"
+                f"{'Uncorrected p<0.05 (likely false positive)' if row.get('sig_uncorrected', False) and not row.get('sig_corrected', False) else 'Not significant'}"
+                for _, row in wu_df.iterrows()
+            ]
 
-        fig = go.Figure(data=[
-            go.Bar(
-                y=wu_df["name"].values, x=wu_df["within_diff"].values,
-                orientation="h", marker_color=bar_colors,
-                hovertext=hover_text, hoverinfo="text"
+            fig = go.Figure(data=[
+                go.Bar(
+                    y=wu_df["name"].values, x=wu_df["within_diff"].values,
+                    orientation="h", marker_color=bar_colors,
+                    hovertext=hover_text, hoverinfo="text"
+                )
+            ])
+            fig.add_vline(x=0, line_color="black", line_width=2)
+            fig.update_layout(
+                title="Within-User Flare Rate Difference by Food<br>"
+                      "<sub>No food survives multiple comparison correction (Bonferroni or FDR)</sub>",
+                xaxis_title="Flare Rate Difference (Eaten - Not Eaten)",
+                xaxis_tickformat="+.0%",
+                height=max(500, len(wu_df) * 22),
             )
-        ])
-        fig.add_vline(x=0, line_color="black", line_width=2)
-        fig.update_layout(
-            title="Within-User Flare Rate Difference by Food<br>"
-                  "<sub>No food survives multiple comparison correction (Bonferroni or FDR)</sub>",
-            xaxis_title="Flare Rate Difference (Eaten - Not Eaten)",
-            xaxis_tickformat="+.0%",
-            height=max(500, len(wu_df) * 22),
-        )
-        st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True)
 
-        # Significance table
-        with st.expander("View full statistical details"):
-            cols_to_show = ["name", "n_users", "on_days", "within_diff", "p_value"]
-            display_df = wu_df[cols_to_show].copy()
-            display_df.columns = ["Food", "Users", "Eating Days", "Flare Rate Diff", "p-value"]
-            display_df["Flare Rate Diff"] = display_df["Flare Rate Diff"].apply(lambda x: f"{x:+.2%}")
-            display_df["p-value"] = display_df["p-value"].apply(lambda x: f"{x:.4f}")
-            bonf = 0.05 / len(wu_df)
-            st.markdown(f"**Bonferroni threshold:** p < {bonf:.4f} (none pass)")
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
-    else:
-        st.info("Within-user analysis not yet available. Run the notebook first.")
+            # Significance table
+            with st.expander("View full statistical details"):
+                cols_to_show = ["name", "n_users", "on_days", "within_diff", "p_value"]
+                display_df = wu_df[cols_to_show].copy()
+                display_df.columns = ["Food", "Users", "Eating Days", "Flare Rate Diff", "p-value"]
+                display_df["Flare Rate Diff"] = display_df["Flare Rate Diff"].apply(lambda x: f"{x:+.2%}")
+                display_df["p-value"] = display_df["p-value"].apply(lambda x: f"{x:.4f}")
+                bonf = 0.05 / len(wu_df)
+                st.markdown(f"**Bonferroni threshold:** p < {bonf:.4f} (none pass)")
+                st.dataframe(display_df, use_container_width=True, hide_index=True)
+        else:
+            st.info("Within-user analysis not yet available. Run the notebook first.")
+
+    # ── Top Foods Frequency (also de-emphasized) ──
+    with st.expander("Top 20 Most Tracked Foods (click to expand)", expanded=False):
+        food_freq = df[food_cols_only].sum().sort_values(ascending=False).head(20)
+        food_names = [c.replace("food_", "").replace("_", " ").title() for c in food_freq.index]
+        fig = go.Figure(data=[
+            go.Bar(y=food_names[::-1], x=food_freq.values[::-1],
+                   orientation="h", marker_color=px.colors.sequential.YlOrRd_r[:20])
+        ])
+        fig.update_layout(title="Most Tracked Foods", xaxis_title="User-Days", height=500)
+        st.plotly_chart(fig, use_container_width=True)
 
     # Correlation Heatmap
     st.subheader("Correlation Heatmap — Top 25 Features")
@@ -529,13 +540,34 @@ with tab4:
         # Create input vector
         input_values = np.zeros(len(feature_cols))
 
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("#### 🍽️ Foods Eaten Today")
-            food_options = sorted([c.replace("food_", "").replace("_", " ").title()
-                                   for c in feature_cols if c.startswith("food_") and not c.startswith("foodcat_")])
-            selected_foods = st.multiselect("Select foods:", food_options)
+            st.markdown("#### 😴 Lifestyle (Strongest Predictors)")
+            tag_options = {
+                "tag_good_sleep": "Good Sleep",
+                "tag_bad_sleep": "Bad Sleep",
+                "tag_poor_sleep": "Poor Sleep",
+                "tag_tired": "Tired",
+                "tag_exhausted": "Exhausted",
+                "tag_stressed": "Stressed",
+                "tag_walked": "Walked",
+                "tag_ate_breakfast": "Ate Breakfast",
+                "tag_period": "Period",
+                "tag_dairy": "Had Dairy",
+                "tag_alcohol": "Had Alcohol",
+                "tag_gluten": "Had Gluten",
+                "tag_had_sex": "Had Sex",
+                "tag_worked": "Worked",
+                "tag_went_to_work": "Went to Work",
+            }
+            available_tags = {k: v for k, v in tag_options.items() if k in feature_cols}
+            selected_tags = st.multiselect(
+                "Select lifestyle tags (these matter most!):",
+                options=list(available_tags.values()),
+                help="Sleep and stress tags are the strongest flare predictors"
+            )
+            tag_name_to_col = {v: k for k, v in available_tags.items()}
 
         with col2:
             st.markdown("#### 💊 Treatments Taken")
@@ -543,8 +575,16 @@ with tab4:
                                     for c in feature_cols if c.startswith("treat_")])
             selected_treats = st.multiselect("Select treatments:", treat_options)
 
+        col3, col4 = st.columns(2)
+
         with col3:
-            st.markdown("#### 🌤️ Conditions")
+            st.markdown("#### 🍽️ Foods Eaten Today")
+            food_options = sorted([c.replace("food_", "").replace("_", " ").title()
+                                   for c in feature_cols if c.startswith("food_") and not c.startswith("foodcat_")])
+            selected_foods = st.multiselect("Select foods:", food_options)
+
+        with col4:
+            st.markdown("#### 🌤️ Demographics & Weather")
             age = st.slider("Age", 10, 80, 30)
             sex = st.selectbox("Sex", ["Female", "Male", "Other/Unknown"])
 
@@ -554,7 +594,13 @@ with tab4:
 
         # Build feature vector
         for i, col in enumerate(feature_cols):
-            if col.startswith("food_") and not col.startswith("foodcat_"):
+            if col.startswith("tag_"):
+                # Map tag columns to selected lifestyle tags
+                if col in tag_name_to_col.values():
+                    label = available_tags.get(col, "")
+                    if label in selected_tags:
+                        input_values[i] = 1
+            elif col.startswith("food_") and not col.startswith("foodcat_"):
                 name = col.replace("food_", "").replace("_", " ").title()
                 if name in selected_foods:
                     input_values[i] = 1
