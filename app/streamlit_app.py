@@ -514,6 +514,54 @@ with tab2:
 
     st.markdown("---")
 
+    # ── Tag Combination Effects ──
+    st.subheader("Compounding Effects: Tired + Stressed Together")
+
+    if "tag_tired" in feature_cols and "tag_stressed" in feature_cols:
+        combos = {
+            "Neither": df[(df["tag_tired"] == 0) & (df["tag_stressed"] == 0)]["flare"].mean(),
+            "Stressed Only": df[(df["tag_tired"] == 0) & (df["tag_stressed"] == 1)]["flare"].mean(),
+            "Tired Only": df[(df["tag_tired"] == 1) & (df["tag_stressed"] == 0)]["flare"].mean(),
+            "Both Tired\n& Stressed": df[(df["tag_tired"] == 1) & (df["tag_stressed"] == 1)]["flare"].mean(),
+        }
+        combo_counts = {
+            "Neither": len(df[(df["tag_tired"] == 0) & (df["tag_stressed"] == 0)]),
+            "Stressed Only": len(df[(df["tag_tired"] == 0) & (df["tag_stressed"] == 1)]),
+            "Tired Only": len(df[(df["tag_tired"] == 1) & (df["tag_stressed"] == 0)]),
+            "Both Tired\n& Stressed": len(df[(df["tag_tired"] == 1) & (df["tag_stressed"] == 1)]),
+        }
+        combo_colors = ["#2ecc71", "#f39c12", "#e67e22", "#e74c3c"]
+
+        fig = go.Figure(data=[
+            go.Bar(
+                x=list(combos.keys()), y=list(combos.values()),
+                marker_color=combo_colors,
+                text=[f"{v:.0%}<br>(n={combo_counts[k]:,})" for k, v in combos.items()],
+                textposition="outside", textfont=dict(size=12),
+            )
+        ])
+        fig.add_hline(y=baseline_flare, line_dash="dash", line_color="black",
+                      annotation_text=f"Baseline: {baseline_flare:.1%}")
+        fig.update_layout(
+            title="Flare Rate by Tired/Stressed Combination",
+            yaxis_title="Flare Rate", yaxis_tickformat=".0%",
+            height=450, yaxis_range=[0, 1.1],
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        neither_rate = combos["Neither"]
+        both_rate = combos["Both Tired\n& Stressed"]
+        st.markdown(
+            f"This chart reveals an **interaction effect** between the two strongest flare predictors. "
+            f"When neither tag is present, the flare rate is **{neither_rate:.0%}** — well below baseline. "
+            f"But when both Tired and Stressed are logged on the same day, the flare rate jumps to "
+            f"**{both_rate:.0%}**, suggesting these states **compound** rather than simply adding together. "
+            f"This pattern — where bad days cluster multiple negative signals — helps explain why the "
+            f"correlation heatmap shows a strong Tired-Stressed co-occurrence (+0.36)."
+        )
+
+    st.markdown("---")
+
     # Correlation Heatmap — significant lifestyle factors + demographics
     st.subheader("Correlation Heatmap — Significant Factors & Demographics")
 
