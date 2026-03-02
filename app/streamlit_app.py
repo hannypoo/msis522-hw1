@@ -440,6 +440,80 @@ with tab2:
                           xaxis_title="User-Days", height=500)
         st.plotly_chart(fig, use_container_width=True)
 
+    # ── Flare Rate: Tag Present vs Absent ──
+    st.subheader("Flare Rate: Lifestyle Tag Present vs. Absent")
+
+    sig_tag_cols = ["tag_tired", "tag_stressed", "tag_exhausted",
+                    "tag_bad_sleep", "tag_poor_sleep", "tag_good_sleep"]
+    sig_tag_cols = [c for c in sig_tag_cols if c in feature_cols]
+
+    if sig_tag_cols:
+        tag_names_bar = []
+        present_rates = []
+        absent_rates = []
+        for col in sig_tag_cols:
+            name = col.replace("tag_", "").replace("_", " ").title()
+            tag_names_bar.append(name)
+            present_rates.append(df[df[col] == 1]["flare"].mean())
+            absent_rates.append(df[df[col] == 0]["flare"].mean())
+
+        fig = go.Figure()
+        fig.add_trace(go.Bar(name="Tag Absent", x=tag_names_bar, y=absent_rates,
+                             marker_color="#3498db",
+                             text=[f"{v:.0%}" for v in absent_rates], textposition="outside"))
+        fig.add_trace(go.Bar(name="Tag Present", x=tag_names_bar, y=present_rates,
+                             marker_color="#e74c3c",
+                             text=[f"{v:.0%}" for v in present_rates], textposition="outside"))
+        fig.add_hline(y=baseline_flare, line_dash="dash", line_color="black",
+                      annotation_text=f"Baseline: {baseline_flare:.1%}")
+        fig.update_layout(
+            barmode="group",
+            title="Flare Rate When Lifestyle Tags Are Present vs. Absent",
+            yaxis_title="Flare Rate", yaxis_tickformat=".0%",
+            height=450, yaxis_range=[0, 1.05],
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown(
+            "When users tag **Tired** or **Exhausted**, their flare rate jumps dramatically compared to "
+            "days without those tags. **Good Sleep** is the only tag where being present is associated "
+            "with a *lower* flare rate — making it the sole protective factor. Note: this is a simple "
+            "across-user comparison (not the within-user paired test above), so confounders may inflate "
+            "the differences, but the direction is consistent."
+        )
+
+    st.markdown("---")
+
+    # ── Age Distribution by Flare Status ──
+    st.subheader("Age Distribution by Flare Status")
+
+    plot_df = df[["age", "flare"]].dropna()
+    no_flare_ages = plot_df[plot_df["flare"] == 0]["age"]
+    flare_ages = plot_df[plot_df["flare"] == 1]["age"]
+
+    fig = go.Figure()
+    fig.add_trace(go.Violin(y=no_flare_ages, name="No Flare", box_visible=True,
+                            meanline_visible=True, fillcolor="#2ecc71", opacity=0.6,
+                            line_color="#27ae60"))
+    fig.add_trace(go.Violin(y=flare_ages, name="Flare", box_visible=True,
+                            meanline_visible=True, fillcolor="#e74c3c", opacity=0.6,
+                            line_color="#c0392b"))
+    fig.update_layout(
+        title="Age Distribution by Flare Status",
+        yaxis_title="Age (years)", height=450,
+        violinmode="overlay",
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown(
+        f"The age distributions for flare and no-flare days are nearly identical "
+        f"(median ~{no_flare_ages.median():.0f} vs ~{flare_ages.median():.0f}), confirming "
+        f"that **age is not a strong predictor of flares** (correlation = -0.04). The slight "
+        f"difference may reflect younger users being earlier in their diagnostic journey."
+    )
+
+    st.markdown("---")
+
     # Correlation Heatmap — significant lifestyle factors + demographics
     st.subheader("Correlation Heatmap — Significant Factors & Demographics")
 
