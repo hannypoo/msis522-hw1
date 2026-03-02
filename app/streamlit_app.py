@@ -484,33 +484,40 @@ with tab2:
 
     st.markdown("---")
 
-    # ── Age Distribution by Flare Status ──
-    st.subheader("Age Distribution by Flare Status")
+    # ── Negative Tag Count by Flare Status ──
+    st.subheader("Negative Lifestyle Tag Count: Flare vs. No-Flare Days")
 
-    plot_df = df[["age", "flare"]].dropna()
-    no_flare_ages = plot_df[plot_df["flare"] == 0]["age"]
-    flare_ages = plot_df[plot_df["flare"] == 1]["age"]
+    neg_tags = ["tag_tired", "tag_stressed", "tag_exhausted", "tag_bad_sleep", "tag_poor_sleep"]
+    neg_tags = [c for c in neg_tags if c in feature_cols]
 
-    fig = go.Figure()
-    fig.add_trace(go.Violin(y=no_flare_ages, name="No Flare", box_visible=True,
-                            meanline_visible=True, fillcolor="#2ecc71", opacity=0.6,
-                            line_color="#27ae60"))
-    fig.add_trace(go.Violin(y=flare_ages, name="Flare", box_visible=True,
-                            meanline_visible=True, fillcolor="#e74c3c", opacity=0.6,
-                            line_color="#c0392b"))
-    fig.update_layout(
-        title="Age Distribution by Flare Status",
-        yaxis_title="Age (years)", height=450,
-        violinmode="overlay",
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    if neg_tags:
+        neg_count = df[neg_tags].sum(axis=1)
+        no_flare_counts = neg_count[df["flare"] == 0]
+        flare_counts = neg_count[df["flare"] == 1]
 
-    st.markdown(
-        f"The age distributions for flare and no-flare days are nearly identical "
-        f"(median ~{no_flare_ages.median():.0f} vs ~{flare_ages.median():.0f}), confirming "
-        f"that **age is not a strong predictor of flares** (correlation = -0.04). The slight "
-        f"difference may reflect younger users being earlier in their diagnostic journey."
-    )
+        fig = go.Figure()
+        fig.add_trace(go.Violin(y=no_flare_counts, name="No Flare", box_visible=True,
+                                meanline_visible=True, fillcolor="#2ecc71", opacity=0.6,
+                                line_color="#27ae60"))
+        fig.add_trace(go.Violin(y=flare_counts, name="Flare", box_visible=True,
+                                meanline_visible=True, fillcolor="#e74c3c", opacity=0.6,
+                                line_color="#c0392b"))
+        fig.update_layout(
+            title="How Many Negative Tags on Flare vs. No-Flare Days?",
+            yaxis_title="Number of Negative Tags Logged",
+            height=450, violinmode="group",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown(
+            f"This violin plot counts how many negative lifestyle tags (tired, stressed, exhausted, "
+            f"bad sleep, poor sleep) each user logged on a given day, split by flare status. "
+            f"**No-flare days** are overwhelmingly concentrated at **0 negative tags** — these are "
+            f"days where users reported none of the negative states. **Flare days** show a heavier "
+            f"tail toward 1-2+ negative tags, meaning flare days are more likely to stack multiple "
+            f"bad signals. This reinforces the compounding effect shown above: bad days aren't just "
+            f"about one thing going wrong — they tend to involve multiple overlapping stressors."
+        )
 
     st.markdown("---")
 
