@@ -454,8 +454,7 @@ with tab2:
     clean_labels[-1] = "FLARE"
 
     fig, ax = plt.subplots(figsize=(9, 7))
-    mask = np.triu(np.ones_like(corr_mat, dtype=bool))
-    sns.heatmap(corr_mat, mask=mask, annot=True, fmt=".2f", cmap="RdBu_r", center=0,
+    sns.heatmap(corr_mat, annot=True, fmt=".2f", cmap="RdBu_r", center=0,
                 xticklabels=clean_labels, yticklabels=clean_labels, ax=ax,
                 vmin=-0.3, vmax=0.3, square=True, linewidths=0.5,
                 annot_kws={"size": 11})
