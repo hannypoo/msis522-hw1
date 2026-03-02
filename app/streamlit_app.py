@@ -131,7 +131,8 @@ with tab1:
     I wanted to explore whether daily food choices can predict symptom flares using
     the [Flaredown](https://flaredown.com/) community dataset.
 
-    **Dataset:** ~8 million rows from the Flaredown autoimmune symptom tracker
+    **Dataset:** [Flaredown Autoimmune Symptom Tracker on Kaggle](https://www.kaggle.com/datasets/flaredown/flaredown-autoimmune-symptom-tracker)
+    — a publicly available export from the Flaredown community tracker (~8 million rows, ~686 MB).
     - Filtered to **104,447 user-days** where users tracked both food AND symptoms
     - **Target:** Binary flare (max symptom severity ≥ 3 on 0-4 scale)
     - **Features:** 50 food items, 6 food categories, 20 treatments, weather, tags, demographics
@@ -216,15 +217,22 @@ with tab2:
     st.subheader("Target Distribution")
     col1, col2 = st.columns([1, 1])
     with col1:
+        no_flare_count = len(df[df["flare"] == 0])
+        flare_count = len(df[df["flare"] == 1])
         fig = go.Figure(data=[
             go.Bar(x=["No Flare (0)", "Flare (1)"],
-                   y=[len(df[df["flare"] == 0]), len(df[df["flare"] == 1])],
+                   y=[no_flare_count, flare_count],
                    marker_color=["#2ecc71", "#e74c3c"],
-                   text=[f'{len(df[df["flare"]==0]):,}<br>({(df["flare"]==0).mean():.1%})',
-                         f'{len(df[df["flare"]==1]):,}<br>({(df["flare"]==1).mean():.1%})'],
+                   text=[f'{no_flare_count:,}<br>({no_flare_count/len(df):.1%})',
+                         f'{flare_count:,}<br>({flare_count/len(df):.1%})'],
                    textposition='outside')
         ])
-        fig.update_layout(title="Flare Distribution", yaxis_title="User-Days", height=400)
+        fig.update_layout(
+            title="Flare Distribution",
+            yaxis_title="User-Days",
+            height=400,
+            yaxis_range=[0, flare_count * 1.15],  # extra headroom so text isn't cut off
+        )
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -242,72 +250,64 @@ with tab2:
                               yaxis_title="User-Days", height=400)
             st.plotly_chart(fig, use_container_width=True)
 
+    st.markdown(
+        f"The target is **imbalanced** — {flare_count/len(df):.1%} of user-days are flare days vs. "
+        f"{no_flare_count/len(df):.1%} no-flare, roughly a **2:1 ratio**. This is expected since Flaredown "
+        f"users are people actively managing chronic illnesses. We handle this with `class_weight='balanced'` "
+        f"on all models, stratified train/test splits, and evaluating on **F1 / ROC AUC** rather than raw accuracy."
+    )
+
     # ── Lifestyle Factors — THE KEY FINDING (shown first) ──
     st.subheader("Lifestyle Factors & Flare Risk (Key Finding)")
 
     all_factors_path = DATA_DIR / "within_user_all_factors.csv"
     if all_factors_path.exists():
         all_df = pd.read_csv(all_factors_path)
-        tags_data = all_df[all_df["group"] == "Tag / Lifestyle"].sort_values("within_diff")
+        tags_all = all_df[all_df["group"] == "Tag / Lifestyle"]
+        # Only show statistically significant factors (Bonferroni corrected)
+        tags_sig = tags_all[tags_all["sig_corrected"] == True].sort_values("within_diff")
 
-        tag_colors = []
-        for _, row in tags_data.iterrows():
-            if row.get("sig_corrected", False):
-                tag_colors.append("#e74c3c" if row["within_diff"] > 0 else "#2ecc71")
-            elif row.get("sig_uncorrected", False):
-                tag_colors.append("#f5b7b1" if row["within_diff"] > 0 else "#abebc6")
-            else:
-                tag_colors.append("#cccccc")
+        if len(tags_sig) > 0:
+            tag_colors = ["#e74c3c" if row["within_diff"] > 0 else "#2ecc71"
+                          for _, row in tags_sig.iterrows()]
 
-        tag_hover = [
-            f"{row['name']}<br>Diff: {row['within_diff']:+.1%}<br>"
-            f"p-value: {row['p_value']:.6f}<br>"
-            f"Users: {row['n_users']}<br>"
-            f"{'SIGNIFICANT (Bonferroni corrected)' if row.get('sig_corrected', False) else 'Not significant'}"
-            for _, row in tags_data.iterrows()
-        ]
+            tag_hover = [
+                f"{row['name']}<br>Diff: {row['within_diff']:+.1%}<br>"
+                f"p-value: {row['p_value']:.6f}<br>"
+                f"Users: {row['n_users']}"
+                for _, row in tags_sig.iterrows()
+            ]
 
-        tag_labels = [
-            f"{row['name']}{'  ***' if row.get('sig_corrected', False) else '  *' if row.get('sig_uncorrected', False) else ''}"
-            for _, row in tags_data.iterrows()
-        ]
+            tag_labels = [row["name"] for _, row in tags_sig.iterrows()]
 
-        fig = go.Figure(data=[
-            go.Bar(
-                y=tag_labels, x=tags_data["within_diff"].values,
-                orientation="h", marker_color=tag_colors,
-                hovertext=tag_hover, hoverinfo="text"
+            fig = go.Figure(data=[
+                go.Bar(
+                    y=tag_labels, x=tags_sig["within_diff"].values,
+                    orientation="h", marker_color=tag_colors,
+                    hovertext=tag_hover, hoverinfo="text"
+                )
+            ])
+            fig.add_vline(x=0, line_color="black", line_width=2)
+            fig.update_layout(
+                title="Statistically Significant Lifestyle Factors (Bonferroni Corrected)<br>"
+                      "<sub>Green = protective (lowers flare risk) | Red = trigger (raises flare risk)</sub>",
+                xaxis_title="Within-User Flare Rate Difference",
+                xaxis_tickformat="+.0%",
+                height=350,
             )
-        ])
-        fig.add_vline(x=0, line_color="black", line_width=2)
-        fig.update_layout(
-            title="Lifestyle Factors & Flare Risk (Within-User Analysis)<br>"
-                  "<sub>*** = significant after Bonferroni correction | Green = protective, Red = trigger</sub>",
-            xaxis_title="Within-User Flare Rate Difference",
-            xaxis_tickformat="+.0%",
-            height=450,
-        )
-        st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True)
 
+        n_tested = len(tags_all)
+        n_sig = len(tags_sig)
         st.markdown(
-            "**Good sleep** is the strongest protective factor (-12.6%), while **being tired** (+17.4%), "
-            "**exhausted** (+20.8%), and **stressed** (+11.9%) are the strongest flare triggers. "
-            "All survive strict Bonferroni correction for 15 simultaneous tests."
+            f"**{n_sig} of {n_tested}** lifestyle tags survived strict Bonferroni correction "
+            f"(p < 0.05/{n_tested} = {0.05/n_tested:.4f}). "
+            f"**Good sleep** is the strongest protective factor (-12.6%), while **being tired** (+17.4%), "
+            f"**exhausted** (+20.8%), and **stressed** (+11.9%) are the strongest flare triggers. "
+            f"The remaining {n_tested - n_sig} tags (e.g., dairy, gluten, alcohol) showed no significant effect."
         )
     else:
         st.info("Lifestyle analysis not yet available. Run the notebook first.")
-
-    # ── Lifestyle Tag Frequency ──
-    st.subheader("How Often Are Lifestyle Tags Tracked?")
-    tag_cols = [c for c in feature_cols if c.startswith("tag_")]
-    tag_freq = df[tag_cols].sum().sort_values(ascending=False)
-    tag_names_freq = [c.replace("tag_", "").replace("_", " ").title() for c in tag_freq.index]
-    fig = go.Figure(data=[
-        go.Bar(y=tag_names_freq[::-1], x=tag_freq.values[::-1],
-               orientation="h", marker_color=["#9b59b6"] * len(tag_freq))
-    ])
-    fig.update_layout(title="Lifestyle Tags — Tracking Frequency", xaxis_title="User-Days", height=450)
-    st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
 
@@ -384,13 +384,20 @@ with tab2:
 
     # ── Top Foods Frequency (also de-emphasized) ──
     with st.expander("Top 20 Most Tracked Foods (click to expand)", expanded=False):
+        st.markdown(
+            "This chart shows which foods users logged most frequently. "
+            "**None of these foods showed a statistically significant effect on flare risk** "
+            "after correcting for multiple comparisons (Bonferroni, 50 simultaneous tests). "
+            "The frequency of tracking does not imply any relationship with flares."
+        )
         food_freq = df[food_cols_only].sum().sort_values(ascending=False).head(20)
         food_names = [c.replace("food_", "").replace("_", " ").title() for c in food_freq.index]
         fig = go.Figure(data=[
             go.Bar(y=food_names[::-1], x=food_freq.values[::-1],
                    orientation="h", marker_color=px.colors.sequential.YlOrRd_r[:20])
         ])
-        fig.update_layout(title="Most Tracked Foods", xaxis_title="User-Days", height=500)
+        fig.update_layout(title="Most Tracked Foods (No Significant Flare Effects Found)",
+                          xaxis_title="User-Days", height=500)
         st.plotly_chart(fig, use_container_width=True)
 
     # Correlation Heatmap
