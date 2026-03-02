@@ -344,17 +344,17 @@ with tab2:
                 bar_colors.append("#cccccc")
 
         hover_text = [
-            f"{row['food']}<br>Diff: {row['within_diff']:+.1%}<br>"
+            f"{row['name']}<br>Diff: {row['within_diff']:+.1%}<br>"
             f"p-value: {row['p_value']:.4f}<br>"
             f"Users: {row['n_users']}<br>"
-            f"Eating days: {row['eat_days']}<br>"
+            f"Eating days: {row['on_days']}<br>"
             f"{'Uncorrected p<0.05 (likely false positive)' if row.get('sig_uncorrected', False) and not row.get('sig_corrected', False) else 'Not significant'}"
             for _, row in wu_df.iterrows()
         ]
 
         fig = go.Figure(data=[
             go.Bar(
-                y=wu_df["food"].values, x=wu_df["within_diff"].values,
+                y=wu_df["name"].values, x=wu_df["within_diff"].values,
                 orientation="h", marker_color=bar_colors,
                 hovertext=hover_text, hoverinfo="text"
             )
@@ -371,7 +371,7 @@ with tab2:
 
         # Significance table
         with st.expander("View full statistical details"):
-            cols_to_show = ["food", "n_users", "eat_days", "within_diff", "p_value"]
+            cols_to_show = ["name", "n_users", "on_days", "within_diff", "p_value"]
             display_df = wu_df[cols_to_show].copy()
             display_df.columns = ["Food", "Users", "Eating Days", "Flare Rate Diff", "p-value"]
             display_df["Flare Rate Diff"] = display_df["Flare Rate Diff"].apply(lambda x: f"{x:+.2%}")
