@@ -463,8 +463,8 @@ with tab2:
     clean_labels = [label_map.get(c, c) for c in heatmap_cols]
 
     fig, ax = plt.subplots(figsize=(10, 8))
-    # Mask diagonal only — show full matrix so no values are hidden
-    mask = np.eye(len(corr_mat), dtype=bool)
+    # Mask upper triangle + diagonal — lower triangle shows all unique pairs
+    mask = np.triu(np.ones_like(corr_mat, dtype=bool))
     sns.heatmap(corr_mat, mask=mask, annot=True, fmt=".2f", cmap="RdBu_r", center=0,
                 xticklabels=clean_labels, yticklabels=clean_labels, ax=ax,
                 vmin=-0.3, vmax=0.3, square=True, linewidths=0.5,
