@@ -140,50 +140,66 @@ with tab1:
     5. **SHAP analysis** on the best tree-based model for feature explainability
     """)
 
-    st.markdown("### Key Findings")
+    st.markdown("### The Key Finding: It's Not About Food")
 
     st.warning(
-        "**Important:** Food is only ONE of many factors influencing flares. Stress, sleep, weather, "
-        "treatments, hormonal cycles, and activity levels all contribute. A small sample of self-reported "
-        "food tracking data cannot establish causation — only associations. These results should be "
-        "discussed with a healthcare provider, not used as medical advice."
+        "**Important:** This is observational, self-reported data. Associations are not causation. "
+        "People may log 'stressed' on already-bad days. Results should be discussed with a "
+        "healthcare provider, not used as medical advice."
     )
 
-    # Load within-user analysis
-    wu_path = DATA_DIR / "within_user_food_analysis.csv"
-    if wu_path.exists():
-        wu_df = pd.read_csv(wu_path)
-        n_total = len(wu_df)
-        n_uncorrected = wu_df["sig_uncorrected"].sum() if "sig_uncorrected" in wu_df.columns else 0
+    # Load the all-factors analysis
+    all_factors_path = DATA_DIR / "within_user_all_factors.csv"
+    if all_factors_path.exists():
+        all_df = pd.read_csv(all_factors_path)
+        tags_df = all_df[all_df["group"] == "Tag / Lifestyle"]
+        foods_df = all_df[all_df["group"] == "Food"]
+        sig_tags = tags_df[tags_df["sig_corrected"] == True].sort_values("within_diff")
+        sig_foods = foods_df[foods_df["sig_corrected"] == True]
 
-        st.markdown(
-            f"#### After testing all 50 foods with multiple comparison correction: "
-            f"**no food has a statistically significant effect on flare rates.**"
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("#### Lifestyle Factors: Strong, Significant Effects")
+            st.markdown(
+                f"**{len(sig_tags)} of {len(tags_df)}** lifestyle tags survived strict "
+                f"Bonferroni correction:"
+            )
+            for _, row in sig_tags.iterrows():
+                direction = "lower" if row["within_diff"] < 0 else "higher"
+                icon = "+" if row["within_diff"] > 0 else ""
+                p_str = "p < 0.001" if row["p_value"] < 0.001 else f"p = {row['p_value']:.4f}"
+                st.markdown(
+                    f"- **{row['name']}** — {icon}{row['within_diff']:.1%} flare rate "
+                    f"({p_str}, n={row['n_users']} users)"
+                )
+
+        with col2:
+            st.markdown("#### Individual Foods: No Significant Effects")
+            st.markdown(
+                f"**0 of {len(foods_df)}** foods survived multiple comparison correction. "
+                f"After testing 50 foods, the few uncorrected p < 0.05 results are consistent "
+                f"with expected false positives (~2.5 expected by chance)."
+            )
+            st.markdown(
+                "This doesn't mean food *never* matters — it means individual food effects "
+                "are too small and variable to detect at the population level in self-reported data. "
+                "Your personal triggers may differ."
+            )
+
+        st.info(
+            "**Bottom line:** Stress management and sleep quality show effects 10-20x larger "
+            "than any food. The ML models achieve ~77% AUC by combining many weak signals "
+            "(foods + tags + treatments + weather), not from any single food."
         )
-
-        st.markdown(
-            f"While {int(n_uncorrected)} foods showed uncorrected p < 0.05, this is exactly what we'd expect "
-            f"by random chance when running 50 tests (expected ~2.5 false positives). After applying "
-            f"Bonferroni and Benjamini-Hochberg corrections, **zero foods survive** — meaning the apparent "
-            f"effects are indistinguishable from statistical noise."
-        )
-
-        st.markdown("""
-        **What this tells us:**
-        - Individual food effects on flares are **too small to reliably detect** in this dataset
-        - The predictive models work by combining **many weak signals** (foods + treatments + tags + weather), not from any single food
-        - Each person's triggers are different — population-level averages wash out individual patterns
-        - Self-reported tracking data is inherently noisy, making small effects hard to isolate
-        """)
     else:
-        st.info("Within-user analysis data not yet generated. Run the notebook first.")
+        st.info("Analysis data not yet generated. Run the notebook first.")
 
     st.markdown("""
     ### Takeaways
-    - **Most foods do not significantly affect flare rates** when analyzed within the same users
-    - **Non-food factors** (stress, sleep, treatments) are likely stronger predictors than any single food
-    - **Track consistently** — more data helps identify *your own* individual patterns
-    - **Consult your healthcare provider** before making dietary changes based on this data
+    - **Prioritize sleep and stress management** — these are the strongest, most reliable predictors of flares
+    - **No single food reliably triggers or prevents flares** at the population level
+    - **Track YOUR patterns** — individual triggers may exist even if they don't show up in population averages
+    - **Consult your healthcare provider** before making changes based on data
     """)
 
 # ═══════════════════════════════════════════════
@@ -233,8 +249,65 @@ with tab2:
     fig.update_layout(title="Most Tracked Foods", xaxis_title="User-Days", height=500)
     st.plotly_chart(fig, use_container_width=True)
 
+    # Lifestyle Factors — the key finding
+    st.subheader("Lifestyle Factors & Flare Risk (Key Finding)")
+
+    all_factors_path = DATA_DIR / "within_user_all_factors.csv"
+    if all_factors_path.exists():
+        all_df = pd.read_csv(all_factors_path)
+        tags_data = all_df[all_df["group"] == "Tag / Lifestyle"].sort_values("within_diff")
+
+        tag_colors = []
+        for _, row in tags_data.iterrows():
+            if row.get("sig_corrected", False):
+                tag_colors.append("#e74c3c" if row["within_diff"] > 0 else "#2ecc71")
+            elif row.get("sig_uncorrected", False):
+                tag_colors.append("#f5b7b1" if row["within_diff"] > 0 else "#abebc6")
+            else:
+                tag_colors.append("#cccccc")
+
+        tag_hover = [
+            f"{row['name']}<br>Diff: {row['within_diff']:+.1%}<br>"
+            f"p-value: {row['p_value']:.6f}<br>"
+            f"Users: {row['n_users']}<br>"
+            f"{'SIGNIFICANT (Bonferroni corrected)' if row.get('sig_corrected', False) else 'Not significant'}"
+            for _, row in tags_data.iterrows()
+        ]
+
+        tag_labels = [
+            f"{row['name']}{'  ***' if row.get('sig_corrected', False) else '  *' if row.get('sig_uncorrected', False) else ''}"
+            for _, row in tags_data.iterrows()
+        ]
+
+        fig = go.Figure(data=[
+            go.Bar(
+                y=tag_labels, x=tags_data["within_diff"].values,
+                orientation="h", marker_color=tag_colors,
+                hovertext=tag_hover, hoverinfo="text"
+            )
+        ])
+        fig.add_vline(x=0, line_color="black", line_width=2)
+        fig.update_layout(
+            title="Lifestyle Factors & Flare Risk (Within-User Analysis)<br>"
+                  "<sub>*** = significant after Bonferroni correction | Green = protective, Red = trigger</sub>",
+            xaxis_title="Within-User Flare Rate Difference",
+            xaxis_tickformat="+.0%",
+            height=450,
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown(
+            "**Good sleep** is the strongest protective factor (-12.6%), while **being tired** (+17.4%), "
+            "**exhausted** (+20.8%), and **stressed** (+11.9%) are the strongest flare triggers. "
+            "All survive strict Bonferroni correction for 15 simultaneous tests."
+        )
+    else:
+        st.info("Lifestyle analysis not yet available. Run the notebook first.")
+
+    st.markdown("---")
+
     # Within-User Food & Flare Analysis
-    st.subheader("Within-User Food & Flare Analysis (Key Chart)")
+    st.subheader("Individual Foods & Flare Risk (Null Result)")
 
     st.markdown(
         "This chart shows the **within-user** flare rate difference for each food: comparing the **same users'** "
