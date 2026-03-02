@@ -442,14 +442,15 @@ with tab2:
 
     # Correlation Heatmap — exclude individual foods (no significant effects)
     st.subheader("Correlation Heatmap — Top Features (Excluding Individual Foods)")
-    # Exclude individual foods AND non-significant tags (dairy, alcohol, gluten, etc.)
+    # Exclude all food-related features and non-significant tags
     sig_tags = {"tag_good_sleep", "tag_bad_sleep", "tag_poor_sleep", "tag_stressed", "tag_tired", "tag_exhausted"}
-    non_food_features = [
+    heatmap_features = [
         c for c in feature_cols
-        if not (c.startswith("food_") and not c.startswith("foodcat_"))  # exclude individual foods
+        if not c.startswith("food_")      # exclude individual foods
+        and not c.startswith("foodcat_")   # exclude food categories
         and not (c.startswith("tag_") and c not in sig_tags)  # exclude non-significant tags
     ]
-    corr_flare = df[non_food_features + ["flare"]].corr()["flare"].drop("flare").abs().sort_values(ascending=False)
+    corr_flare = df[heatmap_features + ["flare"]].corr()["flare"].drop("flare").abs().sort_values(ascending=False)
     top_n = min(25, len(corr_flare))
     top_feats = corr_flare.head(top_n).index.tolist()
     corr_mat = df[top_feats + ["flare"]].corr()
