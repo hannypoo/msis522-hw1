@@ -309,12 +309,30 @@ with tab2:
 
         n_tested = len(tags_all)
         n_sig = len(tags_sig)
+        n_protective = len(tags_sig[tags_sig["within_diff"] < 0])
+        n_triggers = len(tags_sig[tags_sig["within_diff"] > 0])
         st.markdown(
             f"**{n_sig} of {n_tested}** lifestyle tags survived strict Bonferroni correction "
             f"(p < 0.05/{n_tested} = {0.05/n_tested:.4f}). "
-            f"**Good sleep** is the strongest protective factor (-12.6%), while **being tired** (+17.4%), "
-            f"**exhausted** (+20.8%), and **stressed** (+11.9%) are the strongest flare triggers. "
-            f"The remaining {n_tested - n_sig} tags (e.g., dairy, gluten, alcohol) showed no significant effect."
+            f"**Good Sleep** is the only statistically significant **protective** factor (-12.6%), "
+            f"while {n_triggers} factors significantly **increase** flare risk."
+        )
+        st.markdown(
+            "**Why only one protective factor?** The results skew toward triggers partly because of "
+            "the high baseline flare rate (68%). With flares already being the norm, there is limited "
+            "statistical room for something to *further increase* the rate vs. more room for it to *decrease* it "
+            "— yet the data shows the opposite pattern. This likely reflects **self-reporting bias**: users "
+            "tend to tag negative states (tired, stressed, exhausted) on days they already feel bad, "
+            "while positive tags like 'good sleep' are logged more deliberately. Some treatments (e.g., yoga, "
+            "paracetamol) showed promising protective trends but had too few users to reach significance "
+            "after correction."
+        )
+        st.markdown(
+            "**A note on 'Poor Sleep' vs. 'Bad Sleep':** These are separate user-created tags in "
+            "Flaredown — users type in their own labels, so different people chose different words for "
+            "similar concepts. Both independently show a significant increase in flare risk (+6.7% and "
+            "+5.5% respectively), which actually *strengthens* the finding: the sleep-flare connection "
+            "replicates across two independently tagged groups of users."
         )
     else:
         st.info("Lifestyle analysis not yet available. Run the notebook first.")
