@@ -153,39 +153,28 @@ with tab1:
     wu_path = DATA_DIR / "within_user_food_analysis.csv"
     if wu_path.exists():
         wu_df = pd.read_csv(wu_path)
-        sig_foods = wu_df[wu_df["significant"] == True].sort_values("within_diff")
-        sig_lower = sig_foods[sig_foods["within_diff"] < 0]
-        sig_higher = sig_foods[sig_foods["within_diff"] > 0]
-
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("#### Statistically Significant: Lower Flare Rate")
-            if len(sig_lower) > 0:
-                for _, row in sig_lower.iterrows():
-                    st.markdown(
-                        f"- **{row['food']}** — {row['within_diff']:+.1%} within-user "
-                        f"(p={row['p_value']:.4f}, n={row['n_users']} users)"
-                    )
-            else:
-                st.markdown("*No foods reached statistical significance for lowering flare rates.*")
-        with col2:
-            st.markdown("#### Statistically Significant: Higher Flare Rate")
-            if len(sig_higher) > 0:
-                for _, row in sig_higher.iterrows():
-                    st.markdown(
-                        f"- **{row['food']}** — {row['within_diff']:+.1%} within-user "
-                        f"(p={row['p_value']:.4f}, n={row['n_users']} users)"
-                    )
-            else:
-                st.markdown("*No foods reached statistical significance for raising flare rates.*")
-
         n_total = len(wu_df)
-        n_sig = len(sig_foods)
-        st.info(
-            f"Only **{n_sig} of {n_total}** foods showed statistically significant associations with flares "
-            f"(p < 0.05). The majority of foods had **no measurable effect**, and even the significant ones "
-            f"have small effect sizes. This reinforces that food alone is a weak predictor of flares."
+        n_uncorrected = wu_df["sig_uncorrected"].sum() if "sig_uncorrected" in wu_df.columns else 0
+
+        st.markdown(
+            f"#### After testing all 50 foods with multiple comparison correction: "
+            f"**no food has a statistically significant effect on flare rates.**"
         )
+
+        st.markdown(
+            f"While {int(n_uncorrected)} foods showed uncorrected p < 0.05, this is exactly what we'd expect "
+            f"by random chance when running 50 tests (expected ~2.5 false positives). After applying "
+            f"Bonferroni and Benjamini-Hochberg corrections, **zero foods survive** — meaning the apparent "
+            f"effects are indistinguishable from statistical noise."
+        )
+
+        st.markdown("""
+        **What this tells us:**
+        - Individual food effects on flares are **too small to reliably detect** in this dataset
+        - The predictive models work by combining **many weak signals** (foods + treatments + tags + weather), not from any single food
+        - Each person's triggers are different — population-level averages wash out individual patterns
+        - Self-reported tracking data is inherently noisy, making small effects hard to isolate
+        """)
     else:
         st.info("Within-user analysis data not yet generated. Run the notebook first.")
 
@@ -249,40 +238,46 @@ with tab2:
 
     st.markdown(
         "This chart shows the **within-user** flare rate difference for each food: comparing the **same users'** "
-        "flare rates on days they ate a food vs. days they didn't. This avoids Simpson's Paradox, where "
-        "differences in *who* tracks a food can make it falsely appear protective or harmful. "
-        "**Colored bars** are statistically significant (p < 0.05); **gray bars** are not."
+        "flare rates on days they ate a food vs. days they didn't. This controls for Simpson's Paradox, where "
+        "differences in *who* tracks a food can make it falsely appear protective or harmful."
+    )
+
+    st.markdown(
+        "**After correcting for multiple comparisons (50 tests), no food reaches statistical significance.** "
+        "Faded bars had uncorrected p < 0.05 but are likely false positives. Gray bars were not significant "
+        "even before correction."
     )
 
     wu_path = DATA_DIR / "within_user_food_analysis.csv"
     if wu_path.exists():
         wu_df = pd.read_csv(wu_path).sort_values("within_diff")
 
+        has_correction_cols = "sig_uncorrected" in wu_df.columns
+
         bar_colors = []
         for _, row in wu_df.iterrows():
-            if not row["significant"]:
-                bar_colors.append("#999999")
-            elif row["within_diff"] < 0:
-                bar_colors.append("#2ecc71")
+            if has_correction_cols:
+                if row.get("sig_corrected", False) or row.get("sig_fdr", False):
+                    bar_colors.append("#e74c3c" if row["within_diff"] > 0 else "#2ecc71")
+                elif row.get("sig_uncorrected", False):
+                    bar_colors.append("#f5b7b1" if row["within_diff"] > 0 else "#abebc6")
+                else:
+                    bar_colors.append("#cccccc")
             else:
-                bar_colors.append("#e74c3c")
+                bar_colors.append("#cccccc")
 
         hover_text = [
             f"{row['food']}<br>Diff: {row['within_diff']:+.1%}<br>"
             f"p-value: {row['p_value']:.4f}<br>"
             f"Users: {row['n_users']}<br>"
-            f"Eating days: {row['eat_days']}"
-            for _, row in wu_df.iterrows()
-        ]
-
-        labels = [
-            f"{row['food']} {'*' * (1 if row['p_value'] < 0.05 else 0) + '*' * (1 if row['p_value'] < 0.01 else 0) + '*' * (1 if row['p_value'] < 0.001 else 0)}"
+            f"Eating days: {row['eat_days']}<br>"
+            f"{'Uncorrected p<0.05 (likely false positive)' if row.get('sig_uncorrected', False) and not row.get('sig_corrected', False) else 'Not significant'}"
             for _, row in wu_df.iterrows()
         ]
 
         fig = go.Figure(data=[
             go.Bar(
-                y=labels, x=wu_df["within_diff"].values,
+                y=wu_df["food"].values, x=wu_df["within_diff"].values,
                 orientation="h", marker_color=bar_colors,
                 hovertext=hover_text, hoverinfo="text"
             )
@@ -290,7 +285,7 @@ with tab2:
         fig.add_vline(x=0, line_color="black", line_width=2)
         fig.update_layout(
             title="Within-User Flare Rate Difference by Food<br>"
-                  "<sub>Colored = statistically significant (p < 0.05), Gray = not significant</sub>",
+                  "<sub>No food survives multiple comparison correction (Bonferroni or FDR)</sub>",
             xaxis_title="Flare Rate Difference (Eaten - Not Eaten)",
             xaxis_tickformat="+.0%",
             height=max(500, len(wu_df) * 22),
@@ -299,10 +294,13 @@ with tab2:
 
         # Significance table
         with st.expander("View full statistical details"):
-            display_df = wu_df[["food", "n_users", "eat_days", "within_diff", "p_value", "significant"]].copy()
-            display_df.columns = ["Food", "Users", "Eating Days", "Flare Rate Diff", "p-value", "Significant"]
+            cols_to_show = ["food", "n_users", "eat_days", "within_diff", "p_value"]
+            display_df = wu_df[cols_to_show].copy()
+            display_df.columns = ["Food", "Users", "Eating Days", "Flare Rate Diff", "p-value"]
             display_df["Flare Rate Diff"] = display_df["Flare Rate Diff"].apply(lambda x: f"{x:+.2%}")
             display_df["p-value"] = display_df["p-value"].apply(lambda x: f"{x:.4f}")
+            bonf = 0.05 / len(wu_df)
+            st.markdown(f"**Bonferroni threshold:** p < {bonf:.4f} (none pass)")
             st.dataframe(display_df, use_container_width=True, hide_index=True)
     else:
         st.info("Within-user analysis not yet available. Run the notebook first.")
