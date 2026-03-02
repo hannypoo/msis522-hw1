@@ -215,23 +215,24 @@ with tab2:
 
     # Target Distribution
     st.subheader("Target Distribution")
+    no_flare_count = len(df[df["flare"] == 0])
+    flare_count = len(df[df["flare"] == 1])
+
     col1, col2 = st.columns([1, 1])
     with col1:
-        no_flare_count = len(df[df["flare"] == 0])
-        flare_count = len(df[df["flare"] == 1])
         fig = go.Figure(data=[
             go.Bar(x=["No Flare (0)", "Flare (1)"],
                    y=[no_flare_count, flare_count],
                    marker_color=["#2ecc71", "#e74c3c"],
-                   text=[f'{no_flare_count:,}<br>({no_flare_count/len(df):.1%})',
-                         f'{flare_count:,}<br>({flare_count/len(df):.1%})'],
-                   textposition='outside')
+                   text=[f'{no_flare_count:,} ({no_flare_count/len(df):.1%})',
+                         f'{flare_count:,} ({flare_count/len(df):.1%})'],
+                   textposition='inside',
+                   textfont=dict(color="white", size=14))
         ])
         fig.update_layout(
-            title="Flare Distribution",
+            title="Flare Distribution (Binary Target)",
             yaxis_title="User-Days",
             height=400,
-            yaxis_range=[0, flare_count * 1.15],  # extra headroom so text isn't cut off
         )
         st.plotly_chart(fig, use_container_width=True)
 
@@ -251,10 +252,19 @@ with tab2:
             st.plotly_chart(fig, use_container_width=True)
 
     st.markdown(
-        f"The target is **imbalanced** — {flare_count/len(df):.1%} of user-days are flare days vs. "
-        f"{no_flare_count/len(df):.1%} no-flare, roughly a **2:1 ratio**. This is expected since Flaredown "
-        f"users are people actively managing chronic illnesses. We handle this with `class_weight='balanced'` "
-        f"on all models, stratified train/test splits, and evaluating on **F1 / ROC AUC** rather than raw accuracy."
+        f"**Left chart — Flare Distribution:** The target is **imbalanced** — {flare_count/len(df):.1%} of "
+        f"user-days are flare days vs. {no_flare_count/len(df):.1%} no-flare, roughly a **2:1 ratio**. "
+        f"This is expected since Flaredown users are people actively managing chronic illnesses. "
+        f"We handle this with `class_weight='balanced'` on all models, stratified train/test splits, "
+        f"and evaluating on **F1 / ROC AUC** rather than raw accuracy."
+    )
+    st.markdown(
+        "**Right chart — Symptom Severity:** Each user-day's maximum symptom severity is recorded on a "
+        "0–4 scale (0 = none, 1 = mild, 2 = moderate, 3 = severe, 4 = unbearable). "
+        "Severity **4 is the most common** single category, indicating that on many days at least one "
+        "symptom peaks at the worst level. The red dashed line marks the **flare threshold (≥ 3)** — "
+        "days at severity 3 or 4 are labeled as flares. This threshold captures days where symptoms "
+        "meaningfully impair daily functioning."
     )
 
     # ── Lifestyle Factors — THE KEY FINDING (shown first) ──
