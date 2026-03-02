@@ -484,39 +484,66 @@ with tab2:
 
     st.markdown("---")
 
-    # ── Negative Tag Count by Flare Status ──
-    st.subheader("Negative Lifestyle Tag Count: Flare vs. No-Flare Days")
+    # ── What Happens When a Tag Appears? ──
+    st.subheader("When a Lifestyle Tag Is Logged, What Happens?")
 
-    neg_tags = ["tag_tired", "tag_stressed", "tag_exhausted", "tag_bad_sleep", "tag_poor_sleep"]
-    neg_tags = [c for c in neg_tags if c in feature_cols]
+    sig_tag_cols_pct = ["tag_tired", "tag_stressed", "tag_exhausted",
+                        "tag_bad_sleep", "tag_poor_sleep", "tag_good_sleep"]
+    sig_tag_cols_pct = [c for c in sig_tag_cols_pct if c in feature_cols]
 
-    if neg_tags:
-        neg_count = df[neg_tags].sum(axis=1)
-        no_flare_counts = neg_count[df["flare"] == 0]
-        flare_counts = neg_count[df["flare"] == 1]
+    if sig_tag_cols_pct:
+        tag_names_pct = []
+        flare_pcts = []
+        no_flare_pcts = []
+        day_counts = []
+
+        for col in sig_tag_cols_pct:
+            name = col.replace("tag_", "").replace("_", " ").title()
+            subset = df[df[col] == 1]
+            n = len(subset)
+            if n > 0:
+                tag_names_pct.append(name)
+                flare_pcts.append(subset["flare"].mean())
+                no_flare_pcts.append(1 - subset["flare"].mean())
+                day_counts.append(n)
 
         fig = go.Figure()
-        fig.add_trace(go.Violin(y=no_flare_counts, name="No Flare", box_visible=True,
-                                meanline_visible=True, fillcolor="#2ecc71", opacity=0.6,
-                                line_color="#27ae60"))
-        fig.add_trace(go.Violin(y=flare_counts, name="Flare", box_visible=True,
-                                meanline_visible=True, fillcolor="#e74c3c", opacity=0.6,
-                                line_color="#c0392b"))
+        fig.add_trace(go.Bar(
+            name="Flare", y=tag_names_pct, x=flare_pcts, orientation="h",
+            marker_color="#e74c3c",
+            text=[f"{v:.0%}" for v in flare_pcts], textposition="inside",
+            textfont=dict(color="white", size=12),
+        ))
+        fig.add_trace(go.Bar(
+            name="No Flare", y=tag_names_pct, x=no_flare_pcts, orientation="h",
+            marker_color="#2ecc71",
+            text=[f"{v:.0%}" for v in no_flare_pcts], textposition="inside",
+            textfont=dict(color="white", size=12),
+        ))
+        # Add day counts as annotations on the right
+        for i, (name, n) in enumerate(zip(tag_names_pct, day_counts)):
+            fig.add_annotation(x=1.02, y=name, text=f"n={n:,}", showarrow=False,
+                               xanchor="left", font=dict(size=10, color="gray"))
+
+        fig.add_vline(x=baseline_flare, line_dash="dash", line_color="black", line_width=1.5,
+                      annotation_text=f"Baseline: {baseline_flare:.0%}",
+                      annotation_position="top")
         fig.update_layout(
-            title="How Many Negative Tags on Flare vs. No-Flare Days?",
-            yaxis_title="Number of Negative Tags Logged",
-            height=450, violinmode="group",
+            barmode="stack",
+            title="Flare vs. No-Flare Breakdown When Each Tag Is Logged",
+            xaxis_title="Proportion of Days", xaxis_tickformat=".0%",
+            height=400, xaxis_range=[0, 1.12],
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
         )
         st.plotly_chart(fig, use_container_width=True)
 
         st.markdown(
-            f"This violin plot counts how many negative lifestyle tags (tired, stressed, exhausted, "
-            f"bad sleep, poor sleep) each user logged on a given day, split by flare status. "
-            f"**No-flare days** are overwhelmingly concentrated at **0 negative tags** — these are "
-            f"days where users reported none of the negative states. **Flare days** show a heavier "
-            f"tail toward 1-2+ negative tags, meaning flare days are more likely to stack multiple "
-            f"bad signals. This reinforces the compounding effect shown above: bad days aren't just "
-            f"about one thing going wrong — they tend to involve multiple overlapping stressors."
+            "This chart flips the perspective: instead of asking *does a tag change flare rate*, "
+            "it asks **when this tag appears, what fraction of those days are flares?** "
+            "The dashed line marks the baseline flare rate (68%). Tags like **Exhausted** and "
+            "**Tired** push the flare proportion well above baseline — nearly all days with those "
+            "tags are flare days. **Good Sleep** is the only tag that pulls it below baseline, "
+            "showing a meaningfully higher share of no-flare days when good sleep is reported."
         )
 
     st.markdown("---")
