@@ -443,8 +443,13 @@ with tab2:
     # Correlation Heatmap — exclude individual foods (no significant effects)
     st.subheader("Correlation Heatmap — Significant Factors & Demographics")
     # Focus heatmap on meaningful features only
-    sig_tags = ["tag_tired", "tag_exhausted", "tag_stressed", "tag_bad_sleep", "tag_poor_sleep", "tag_good_sleep"]
-    heatmap_features = [c for c in sig_tags if c in feature_cols] + ["age", "sex_female"]
+    # Order: least important at top (masked most), most important at bottom (visible)
+    heatmap_features = [
+        "age", "sex_female",
+        "tag_good_sleep", "tag_poor_sleep", "tag_bad_sleep",
+        "tag_exhausted", "tag_stressed", "tag_tired",
+    ]
+    heatmap_features = [c for c in heatmap_features if c in feature_cols]
     corr_mat = df[heatmap_features + ["flare"]].corr()
     clean_labels = [
         c.replace("tag_", "").replace("_", " ").title() if c.startswith("tag_")
@@ -454,7 +459,8 @@ with tab2:
     clean_labels[-1] = "FLARE"
 
     fig, ax = plt.subplots(figsize=(9, 7))
-    sns.heatmap(corr_mat, annot=True, fmt=".2f", cmap="RdBu_r", center=0,
+    mask = np.triu(np.ones_like(corr_mat, dtype=bool))
+    sns.heatmap(corr_mat, mask=mask, annot=True, fmt=".2f", cmap="RdBu_r", center=0,
                 xticklabels=clean_labels, yticklabels=clean_labels, ax=ax,
                 vmin=-0.3, vmax=0.3, square=True, linewidths=0.5,
                 annot_kws={"size": 11})
