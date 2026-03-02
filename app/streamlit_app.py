@@ -476,13 +476,19 @@ with tab2:
     plt.close()
 
     st.markdown(
-        "This heatmap shows pairwise Pearson correlations between the **6 statistically significant "
-        "lifestyle tags**, age, sex, and the flare target. The diagonal (all 1.00) is hidden for clarity. "
-        "**Tired** (+0.18) and **Stressed** (+0.13) show the strongest positive correlations with flare, "
-        "while **Good Sleep** (-0.07) is the only negative correlation. "
-        "Tired and Stressed also correlate strongly with each other (+0.36), suggesting these states "
-        "co-occur. All food-related features, treatments, and weather are excluded since none showed "
-        "statistically significant effects on flares."
+        "**How to read this chart:** Each cell shows the Pearson correlation between two features, "
+        "ranging from -1 to +1. The **color bar on the right** indicates direction and strength: "
+        "**red = positive correlation** (both increase together), **blue = negative correlation** "
+        "(one increases as the other decreases), and **white = no correlation**. Darker colors mean "
+        "stronger relationships."
+    )
+    st.markdown(
+        "**Tired** (+0.18) and **Stressed** (+0.13) show the strongest positive correlations with flare — "
+        "when these tags are present, flares are more likely. **Good Sleep** (-0.07) and **Age** (-0.04) "
+        "are negatively correlated with flare, meaning good sleep and older age are associated with "
+        "fewer flares. Tired and Stressed also correlate strongly with each other (+0.36), suggesting "
+        "these states tend to co-occur on the same days. All food-related features, treatments, and "
+        "weather are excluded since none showed statistically significant effects on flares."
     )
 
 # ═══════════════════════════════════════════════
