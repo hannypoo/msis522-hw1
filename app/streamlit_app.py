@@ -92,6 +92,10 @@ except Exception as e:
     st.stop()
 
 # ── Tabs ──
+# Global derived columns (used across tabs)
+food_cols_only = [c for c in feature_cols if c.startswith("food_") and not c.startswith("foodcat_")]
+baseline_flare = df["flare"].mean()
+
 tab1, tab2, tab3, tab4 = st.tabs([
     "📋 Executive Summary",
     "📊 Descriptive Analytics",
