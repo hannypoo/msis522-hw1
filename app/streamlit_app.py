@@ -642,9 +642,15 @@ with tab2:
         "**Tired** (+0.18) and **Stressed** (+0.13) show the strongest positive correlations with flare — "
         "and they also correlate strongly with each other (+0.36), suggesting these states tend to "
         "co-occur on the same days. **Good Sleep** (-0.07) and **Age** (-0.04) are negatively correlated "
-        "with flare, meaning good sleep and older age are associated with fewer flares. "
-        "All food-related features, treatments, and weather are excluded since none showed "
-        "statistically significant effects on flares."
+        "with flare, meaning good sleep and older age are associated with fewer flares."
+    )
+    st.markdown(
+        "**Modeling implications:** No single feature is strongly correlated with flare (all < 0.2), "
+        "so models must combine many weak signals — favoring ensemble methods like Random Forest and "
+        "XGBoost over simple linear models. The strong Tired–Stressed co-occurrence (+0.36) introduces "
+        "multicollinearity, which tree-based models handle naturally but can inflate coefficient "
+        "variance in Logistic Regression. This is one reason we expect tree-based models to outperform "
+        "the linear baseline."
     )
 
 # ═══════════════════════════════════════════════
