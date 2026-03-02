@@ -440,42 +440,49 @@ with tab2:
                           xaxis_title="User-Days", height=500)
         st.plotly_chart(fig, use_container_width=True)
 
-    # Correlation Heatmap — exclude individual foods (no significant effects)
+    # Correlation Heatmap — significant lifestyle factors + demographics
     st.subheader("Correlation Heatmap — Significant Factors & Demographics")
-    # Focus heatmap on meaningful features only
-    # Order: least important at top (masked most), most important at bottom (visible)
-    heatmap_features = [
-        "age", "sex_female",
-        "tag_good_sleep", "tag_poor_sleep", "tag_bad_sleep",
-        "tag_exhausted", "tag_stressed", "tag_tired",
-    ]
-    heatmap_features = [c for c in heatmap_features if c in feature_cols]
-    corr_mat = df[heatmap_features + ["flare"]].corr()
-    clean_labels = [
-        c.replace("tag_", "").replace("_", " ").title() if c.startswith("tag_")
-        else c.replace("_", " ").title()
-        for c in corr_mat.columns
-    ]
-    clean_labels[-1] = "FLARE"
 
-    fig, ax = plt.subplots(figsize=(9, 7))
-    mask = np.triu(np.ones_like(corr_mat, dtype=bool))
+    # Only include the significant lifestyle tags + demographics + flare
+    heatmap_cols = []
+    for c in ["tag_tired", "tag_stressed", "tag_exhausted", "tag_bad_sleep",
+              "tag_poor_sleep", "tag_good_sleep", "age", "sex_female"]:
+        if c in feature_cols:
+            heatmap_cols.append(c)
+    heatmap_cols.append("flare")
+
+    corr_mat = df[heatmap_cols].corr()
+
+    # Clean labels for display
+    label_map = {
+        "tag_tired": "Tired", "tag_stressed": "Stressed", "tag_exhausted": "Exhausted",
+        "tag_bad_sleep": "Bad Sleep", "tag_poor_sleep": "Poor Sleep",
+        "tag_good_sleep": "Good Sleep", "age": "Age", "sex_female": "Sex (Female)",
+        "flare": "FLARE",
+    }
+    clean_labels = [label_map.get(c, c) for c in heatmap_cols]
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    # Mask diagonal only — show full matrix so no values are hidden
+    mask = np.eye(len(corr_mat), dtype=bool)
     sns.heatmap(corr_mat, mask=mask, annot=True, fmt=".2f", cmap="RdBu_r", center=0,
                 xticklabels=clean_labels, yticklabels=clean_labels, ax=ax,
                 vmin=-0.3, vmax=0.3, square=True, linewidths=0.5,
                 annot_kws={"size": 11})
-    ax.set_title("Correlation Heatmap — Significant Lifestyle Factors & Flare", fontsize=13, fontweight="bold")
+    ax.set_title("Correlation Heatmap — Significant Lifestyle Factors & Flare",
+                 fontsize=13, fontweight="bold")
     plt.tight_layout()
     st.pyplot(fig)
     plt.close()
 
     st.markdown(
         "This heatmap shows pairwise Pearson correlations between the **6 statistically significant "
-        "lifestyle tags**, age, sex, and the flare target. "
-        "Notice that **Tired, Exhausted, and Stressed correlate with each other** and positively with flare, "
-        "while **Good Sleep is negatively correlated with all of them** — users who report good sleep are "
-        "less likely to also report being tired or stressed that day. Age and sex show weak but present "
-        "correlations (female users and younger users trend slightly higher in flare rate)."
+        "lifestyle tags**, age, sex, and the flare target. The diagonal (all 1.00) is hidden for clarity. "
+        "**Tired** (+0.18) and **Stressed** (+0.13) show the strongest positive correlations with flare, "
+        "while **Good Sleep** (-0.07) is the only negative correlation. "
+        "Tired and Stressed also correlate strongly with each other (+0.36), suggesting these states "
+        "co-occur. All food-related features, treatments, and weather are excluded since none showed "
+        "statistically significant effects on flares."
     )
 
 # ═══════════════════════════════════════════════
