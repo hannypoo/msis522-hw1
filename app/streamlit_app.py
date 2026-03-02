@@ -440,12 +440,14 @@ with tab2:
                           xaxis_title="User-Days", height=500)
         st.plotly_chart(fig, use_container_width=True)
 
-    # Correlation Heatmap
-    st.subheader("Correlation Heatmap — Top 25 Features")
-    corr_flare = df[feature_cols + ["flare"]].corr()["flare"].drop("flare").abs().sort_values(ascending=False)
-    top25 = corr_flare.head(25).index.tolist()
-    corr_mat = df[top25 + ["flare"]].corr()
-    clean_labels = [c.replace("food_", "").replace("treat_", "Tx:").replace("tag_", "Tag:").replace("weather_", "W:").replace("foodcat_", "Cat:").replace("_", " ").title() for c in corr_mat.columns]
+    # Correlation Heatmap — exclude individual foods (no significant effects)
+    st.subheader("Correlation Heatmap — Top Features (Excluding Individual Foods)")
+    non_food_features = [c for c in feature_cols if not (c.startswith("food_") and not c.startswith("foodcat_"))]
+    corr_flare = df[non_food_features + ["flare"]].corr()["flare"].drop("flare").abs().sort_values(ascending=False)
+    top_n = min(25, len(corr_flare))
+    top_feats = corr_flare.head(top_n).index.tolist()
+    corr_mat = df[top_feats + ["flare"]].corr()
+    clean_labels = [c.replace("treat_", "Tx: ").replace("tag_", "Tag: ").replace("weather_", "W: ").replace("foodcat_", "Cat: ").replace("_", " ").title() for c in corr_mat.columns]
     clean_labels[-1] = "FLARE"
 
     fig, ax = plt.subplots(figsize=(14, 12))
@@ -453,10 +455,19 @@ with tab2:
     sns.heatmap(corr_mat, mask=mask, annot=True, fmt=".2f", cmap="RdBu_r", center=0,
                 xticklabels=clean_labels, yticklabels=clean_labels, ax=ax,
                 vmin=-0.3, vmax=0.3, square=True, linewidths=0.5)
-    ax.set_title("Correlation Heatmap — Top 25 Features vs Flare", fontsize=14, fontweight="bold")
+    ax.set_title("Correlation Heatmap — Top Features vs Flare (Excluding Individual Foods)", fontsize=13, fontweight="bold")
     plt.tight_layout()
     st.pyplot(fig)
     plt.close()
+
+    st.markdown(
+        "This heatmap shows pairwise Pearson correlations between the top features most correlated "
+        "with the flare target. **Individual foods are excluded** since none showed statistically "
+        "significant effects — the remaining features (lifestyle tags, treatments, food categories, "
+        "weather, demographics) better represent the meaningful predictors. Lifestyle tags like "
+        "'Tired' and 'Stressed' show the strongest positive correlations with flare, while 'Good Sleep' "
+        "shows the strongest negative correlation, consistent with the within-user analysis above."
+    )
 
 # ═══════════════════════════════════════════════
 # TAB 3: Model Performance
