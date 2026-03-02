@@ -441,14 +441,14 @@ with tab2:
         st.plotly_chart(fig, use_container_width=True)
 
     # Correlation Heatmap — exclude individual foods (no significant effects)
-    st.subheader("Correlation Heatmap — Top Features (Excluding Individual Foods)")
-    # Exclude all food-related features and non-significant tags
+    st.subheader("Correlation Heatmap — Significant Factors & Demographics")
+    # Focus heatmap on meaningful features only
     sig_tags = {"tag_good_sleep", "tag_bad_sleep", "tag_poor_sleep", "tag_stressed", "tag_tired", "tag_exhausted"}
     heatmap_features = [
         c for c in feature_cols
-        if not c.startswith("food_")      # exclude individual foods
-        and not c.startswith("foodcat_")   # exclude food categories
-        and not (c.startswith("tag_") and c not in sig_tags)  # exclude non-significant tags
+        if c in sig_tags                                        # significant lifestyle tags
+        or c in ("age", "sex_female", "country_us")             # demographics
+        or c in ("weather_humidity", "weather_pressure")        # numeric weather
     ]
     corr_flare = df[heatmap_features + ["flare"]].corr()["flare"].drop("flare").abs().sort_values(ascending=False)
     top_n = min(25, len(corr_flare))
@@ -457,23 +457,24 @@ with tab2:
     clean_labels = [c.replace("treat_", "Tx: ").replace("tag_", "Tag: ").replace("weather_", "W: ").replace("foodcat_", "Cat: ").replace("_", " ").title() for c in corr_mat.columns]
     clean_labels[-1] = "FLARE"
 
-    fig, ax = plt.subplots(figsize=(14, 12))
+    fig, ax = plt.subplots(figsize=(10, 8))
     mask = np.triu(np.ones_like(corr_mat, dtype=bool))
     sns.heatmap(corr_mat, mask=mask, annot=True, fmt=".2f", cmap="RdBu_r", center=0,
                 xticklabels=clean_labels, yticklabels=clean_labels, ax=ax,
                 vmin=-0.3, vmax=0.3, square=True, linewidths=0.5)
-    ax.set_title("Correlation Heatmap — Top Features vs Flare (Excluding Individual Foods)", fontsize=13, fontweight="bold")
+    ax.set_title("Correlation Heatmap — Significant Lifestyle Factors, Demographics & Flare", fontsize=13, fontweight="bold")
     plt.tight_layout()
     st.pyplot(fig)
     plt.close()
 
     st.markdown(
-        "This heatmap shows pairwise Pearson correlations between the top features most correlated "
-        "with the flare target. **Individual foods are excluded** since none showed statistically "
-        "significant effects — the remaining features (lifestyle tags, treatments, food categories, "
-        "weather, demographics) better represent the meaningful predictors. Lifestyle tags like "
-        "'Tired' and 'Stressed' show the strongest positive correlations with flare, while 'Good Sleep' "
-        "shows the strongest negative correlation, consistent with the within-user analysis above."
+        "This heatmap shows pairwise Pearson correlations between the **6 statistically significant "
+        "lifestyle tags**, demographics (age, sex, country), humidity, pressure, and the flare target. "
+        "Foods, treatments, and weather icons are excluded — foods showed no significant effects, "
+        "and treatments/weather icons produced misleading simple correlations due to confounding "
+        "(e.g., yoga users tend to be sicker patients, not because yoga causes flares). "
+        "Notice that 'Tired', 'Exhausted', and 'Stressed' correlate with each other and with flare, "
+        "while 'Good Sleep' is negatively correlated with all of them."
     )
 
 # ═══════════════════════════════════════════════
