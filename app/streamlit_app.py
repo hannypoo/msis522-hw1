@@ -484,11 +484,11 @@ with tab2:
     )
     st.markdown(
         "**Tired** (+0.18) and **Stressed** (+0.13) show the strongest positive correlations with flare — "
-        "when these tags are present, flares are more likely. **Good Sleep** (-0.07) and **Age** (-0.04) "
-        "are negatively correlated with flare, meaning good sleep and older age are associated with "
-        "fewer flares. Tired and Stressed also correlate strongly with each other (+0.36), suggesting "
-        "these states tend to co-occur on the same days. All food-related features, treatments, and "
-        "weather are excluded since none showed statistically significant effects on flares."
+        "and they also correlate strongly with each other (+0.36), suggesting these states tend to "
+        "co-occur on the same days. **Good Sleep** (-0.07) and **Age** (-0.04) are negatively correlated "
+        "with flare, meaning good sleep and older age are associated with fewer flares. "
+        "All food-related features, treatments, and weather are excluded since none showed "
+        "statistically significant effects on flares."
     )
 
 # ═══════════════════════════════════════════════
