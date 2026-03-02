@@ -129,53 +129,72 @@ with tab1:
 
     **Dataset:** ~8 million rows from the Flaredown autoimmune symptom tracker
     - Filtered to **104,447 user-days** where users tracked both food AND symptoms
-    - **Target:** Binary flare (max symptom severity ≥ 3 on 0–4 scale)
+    - **Target:** Binary flare (max symptom severity ≥ 3 on 0-4 scale)
     - **Features:** 50 food items, 6 food categories, 20 treatments, weather, tags, demographics
 
     ### Methodology
     1. **Data Preprocessing:** Pivoted long-format data into per-day feature vectors
-    2. **5 Models Trained:** Logistic Regression, Decision Tree, Random Forest, XGBoost, MLP Neural Net
-    3. **All models** use `class_weight='balanced'` to handle the 68/32 class imbalance
-    4. **SHAP analysis** reveals which foods most influence flare predictions
+    2. **Within-User Paired Analysis:** Compared each user's own flare rates on eating vs. non-eating days to avoid Simpson's Paradox
+    3. **5 Models Trained:** Logistic Regression, Decision Tree, Random Forest, XGBoost, MLP Neural Net
+    4. **Statistical Significance:** Wilcoxon signed-rank tests on per-user flare rate differences
+    5. **SHAP analysis** on the best tree-based model for feature explainability
     """)
 
     st.markdown("### Key Findings")
 
-    # Compute food flare rates for summary
-    food_cols_only = [c for c in feature_cols if c.startswith("food_") and not c.startswith("foodcat_")]
-    baseline_flare = df["flare"].mean()
+    st.warning(
+        "**Important:** Food is only ONE of many factors influencing flares. Stress, sleep, weather, "
+        "treatments, hormonal cycles, and activity levels all contribute. A small sample of self-reported "
+        "food tracking data cannot establish causation — only associations. These results should be "
+        "discussed with a healthcare provider, not used as medical advice."
+    )
 
-    protective = []
-    triggering = []
-    for col in food_cols_only:
-        eaten = df[df[col] == 1]
-        if len(eaten) >= 100:
-            rate = eaten["flare"].mean()
-            name = col.replace("food_", "").replace("_", " ").title()
-            if rate < baseline_flare - 0.02:
-                protective.append((name, rate))
-            elif rate > baseline_flare + 0.02:
-                triggering.append((name, rate))
+    # Load within-user analysis
+    wu_path = DATA_DIR / "within_user_food_analysis.csv"
+    if wu_path.exists():
+        wu_df = pd.read_csv(wu_path)
+        sig_foods = wu_df[wu_df["significant"] == True].sort_values("within_diff")
+        sig_lower = sig_foods[sig_foods["within_diff"] < 0]
+        sig_higher = sig_foods[sig_foods["within_diff"] > 0]
 
-    protective.sort(key=lambda x: x[1])
-    triggering.sort(key=lambda x: -x[1])
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("#### Statistically Significant: Lower Flare Rate")
+            if len(sig_lower) > 0:
+                for _, row in sig_lower.iterrows():
+                    st.markdown(
+                        f"- **{row['food']}** — {row['within_diff']:+.1%} within-user "
+                        f"(p={row['p_value']:.4f}, n={row['n_users']} users)"
+                    )
+            else:
+                st.markdown("*No foods reached statistical significance for lowering flare rates.*")
+        with col2:
+            st.markdown("#### Statistically Significant: Higher Flare Rate")
+            if len(sig_higher) > 0:
+                for _, row in sig_higher.iterrows():
+                    st.markdown(
+                        f"- **{row['food']}** — {row['within_diff']:+.1%} within-user "
+                        f"(p={row['p_value']:.4f}, n={row['n_users']} users)"
+                    )
+            else:
+                st.markdown("*No foods reached statistical significance for raising flare rates.*")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("#### 🟢 Potentially Protective Foods")
-        for name, rate in protective[:5]:
-            st.markdown(f"- **{name}** — {rate:.1%} flare rate (vs {baseline_flare:.1%} baseline)")
-    with col2:
-        st.markdown("#### 🔴 Potential Trigger Foods")
-        for name, rate in triggering[:5]:
-            st.markdown(f"- **{name}** — {rate:.1%} flare rate (vs {baseline_flare:.1%} baseline)")
+        n_total = len(wu_df)
+        n_sig = len(sig_foods)
+        st.info(
+            f"Only **{n_sig} of {n_total}** foods showed statistically significant associations with flares "
+            f"(p < 0.05). The majority of foods had **no measurable effect**, and even the significant ones "
+            f"have small effect sizes. This reinforces that food alone is a weak predictor of flares."
+        )
+    else:
+        st.info("Within-user analysis data not yet generated. Run the notebook first.")
 
     st.markdown("""
-    ### Recommendations
-    - **Track food consistently** — more data = better predictions
-    - **Pay attention to trigger patterns** — individual responses vary
-    - **Consider non-food factors** — stress, sleep, and weather all contribute
-    - **Consult your healthcare provider** before making dietary changes
+    ### Takeaways
+    - **Most foods do not significantly affect flare rates** when analyzed within the same users
+    - **Non-food factors** (stress, sleep, treatments) are likely stronger predictors than any single food
+    - **Track consistently** — more data helps identify *your own* individual patterns
+    - **Consult your healthcare provider** before making dietary changes based on this data
     """)
 
 # ═══════════════════════════════════════════════
@@ -225,28 +244,68 @@ with tab2:
     fig.update_layout(title="Most Tracked Foods", xaxis_title="User-Days", height=500)
     st.plotly_chart(fig, use_container_width=True)
 
-    # Flare Rate by Food
-    st.subheader("Flare Rate by Food (Key Chart)")
-    flare_rates = {}
-    for col in food_cols_only:
-        name = col.replace("food_", "").replace("_", " ").title()
-        eaten = df[df[col] == 1]
-        if len(eaten) >= 100:
-            flare_rates[name] = eaten["flare"].mean()
+    # Within-User Food & Flare Analysis
+    st.subheader("Within-User Food & Flare Analysis (Key Chart)")
 
-    flare_sr = pd.Series(flare_rates).sort_values()
-    colors_fr = ["#2ecc71" if v < baseline_flare else "#e74c3c" for v in flare_sr.values]
+    st.markdown(
+        "This chart shows the **within-user** flare rate difference for each food: comparing the **same users'** "
+        "flare rates on days they ate a food vs. days they didn't. This avoids Simpson's Paradox, where "
+        "differences in *who* tracks a food can make it falsely appear protective or harmful. "
+        "**Colored bars** are statistically significant (p < 0.05); **gray bars** are not."
+    )
 
-    fig = go.Figure(data=[
-        go.Bar(y=flare_sr.index, x=flare_sr.values,
-               orientation="h", marker_color=colors_fr)
-    ])
-    fig.add_vline(x=baseline_flare, line_dash="dash", line_color="black",
-                  annotation_text=f"Baseline: {baseline_flare:.1%}")
-    fig.update_layout(title="Flare Rate by Food", xaxis_title="Flare Rate",
-                      height=max(400, len(flare_sr) * 22),
-                      xaxis_tickformat=".0%")
-    st.plotly_chart(fig, use_container_width=True)
+    wu_path = DATA_DIR / "within_user_food_analysis.csv"
+    if wu_path.exists():
+        wu_df = pd.read_csv(wu_path).sort_values("within_diff")
+
+        bar_colors = []
+        for _, row in wu_df.iterrows():
+            if not row["significant"]:
+                bar_colors.append("#999999")
+            elif row["within_diff"] < 0:
+                bar_colors.append("#2ecc71")
+            else:
+                bar_colors.append("#e74c3c")
+
+        hover_text = [
+            f"{row['food']}<br>Diff: {row['within_diff']:+.1%}<br>"
+            f"p-value: {row['p_value']:.4f}<br>"
+            f"Users: {row['n_users']}<br>"
+            f"Eating days: {row['eat_days']}"
+            for _, row in wu_df.iterrows()
+        ]
+
+        labels = [
+            f"{row['food']} {'*' * (1 if row['p_value'] < 0.05 else 0) + '*' * (1 if row['p_value'] < 0.01 else 0) + '*' * (1 if row['p_value'] < 0.001 else 0)}"
+            for _, row in wu_df.iterrows()
+        ]
+
+        fig = go.Figure(data=[
+            go.Bar(
+                y=labels, x=wu_df["within_diff"].values,
+                orientation="h", marker_color=bar_colors,
+                hovertext=hover_text, hoverinfo="text"
+            )
+        ])
+        fig.add_vline(x=0, line_color="black", line_width=2)
+        fig.update_layout(
+            title="Within-User Flare Rate Difference by Food<br>"
+                  "<sub>Colored = statistically significant (p < 0.05), Gray = not significant</sub>",
+            xaxis_title="Flare Rate Difference (Eaten - Not Eaten)",
+            xaxis_tickformat="+.0%",
+            height=max(500, len(wu_df) * 22),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Significance table
+        with st.expander("View full statistical details"):
+            display_df = wu_df[["food", "n_users", "eat_days", "within_diff", "p_value", "significant"]].copy()
+            display_df.columns = ["Food", "Users", "Eating Days", "Flare Rate Diff", "p-value", "Significant"]
+            display_df["Flare Rate Diff"] = display_df["Flare Rate Diff"].apply(lambda x: f"{x:+.2%}")
+            display_df["p-value"] = display_df["p-value"].apply(lambda x: f"{x:.4f}")
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+    else:
+        st.info("Within-user analysis not yet available. Run the notebook first.")
 
     # Correlation Heatmap
     st.subheader("Correlation Heatmap — Top 25 Features")
