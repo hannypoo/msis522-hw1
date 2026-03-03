@@ -700,6 +700,15 @@ with tab3:
         best_f1 = comp_df.loc[best_model_name, "F1 Score"]
         st.success(f"**Best model by F1 Score:** {best_model_name} ({best_f1:.4f})")
 
+        baseline_f1 = comp_df.loc["Logistic Regression", "F1 Score"]
+        st.markdown(f"""
+**Interpretation:** The Logistic Regression baseline achieves an F1 of {baseline_f1:.4f}, which every subsequent model
+beats — confirming that the non-linear patterns in this data (interaction effects between tags, foods, and weather)
+benefit from more flexible model architectures. {best_model_name} leads with an F1 of {best_f1:.4f},
+a **+{best_f1 - baseline_f1:.2f}** improvement over baseline. Recall is especially important here: missing a real
+flare day (false negative) is worse than a false alarm, so models with higher recall are preferred.
+""")
+
         # Bar chart comparison
         st.subheader("Visual Comparison")
         fig = go.Figure()
@@ -743,6 +752,14 @@ with tab3:
                           height=600)
         st.plotly_chart(fig, use_container_width=True)
 
+        st.markdown("""
+**How to read this chart:** Each curve shows the trade-off between catching flare days (True Positive Rate, y-axis)
+and false alarms (False Positive Rate, x-axis) at every possible decision threshold. A curve closer to the
+**top-left corner** is better — it means the model catches more real flares without raising false alarms.
+The dashed gray line represents a random coin-flip model (AUC = 0.5). All five models sit well above random,
+with the ensemble methods (Random Forest, XGBoost) showing the strongest separation between flare and no-flare days.
+""")
+
         # Confusion Matrix — use best available model (Random Forest is too large for GitHub)
         st.subheader("Confusion Matrix — Best Model")
         from sklearn.metrics import confusion_matrix
@@ -774,6 +791,24 @@ with tab3:
             plt.tight_layout()
             st.pyplot(fig)
             plt.close()
+
+            # Dynamic interpretation
+            tn, fp, fn, tp = cm.ravel()
+            total = tn + fp + fn + tp
+            st.markdown(f"""
+**How to read this chart:** The confusion matrix shows what the model actually predicted vs. what really happened
+across all {total:,} test-set days:
+
+| | **Predicted No Flare** | **Predicted Flare** |
+|---|---|---|
+| **Actually No Flare** | {tn:,} ✅ Correct | {fp:,} ⚠️ False alarm |
+| **Actually Flare** | {fn:,} ❌ Missed flare | {tp:,} ✅ Caught |
+
+The model correctly identifies **{tp:,} out of {tp + fn:,}** actual flare days ({tp/(tp+fn):.0%} recall)
+and correctly rules out **{tn:,} out of {tn + fp:,}** no-flare days ({tn/(tn+fp):.0%} specificity).
+The **{fn:,} missed flares** (bottom-left) are the most concerning — these are days the model said "no flare"
+but the user actually experienced one.
+""")
     else:
         st.warning("No model comparison data found. Run the notebook first.")
 
