@@ -68,6 +68,17 @@ def load_comparison():
 
 
 @st.cache_data
+def load_rf_predictions():
+    """Load saved Random Forest predictions (model too large for GitHub)."""
+    try:
+        y_pred = np.load(DATA_DIR / "rf_predictions.npy")
+        y_prob = np.load(DATA_DIR / "rf_probabilities.npy")
+        return y_pred, y_prob
+    except Exception:
+        return None, None
+
+
+@st.cache_data
 def load_shap_data():
     try:
         shap_values = np.load(DATA_DIR / "shap_values.npy")
@@ -84,6 +95,7 @@ try:
     models, scaler = load_models()
     comp_df = load_comparison()
     shap_values, shap_sample, shap_expected = load_shap_data()
+    rf_pred, rf_prob = load_rf_predictions()
     data_loaded = True
 except Exception as e:
     data_loaded = False
@@ -747,19 +759,26 @@ are not enough to capture the complex interactions between lifestyle factors, fo
         fig = go.Figure()
         line_colors = ["#3498db", "#e74c3c", "#2ecc71", "#f39c12", "#9b59b6"]
 
-        for i, (name, model) in enumerate(models.items()):
+        # Build dict of all model names → probabilities (including RF from saved file)
+        all_model_probs = {}
+        for name, model in models.items():
             try:
                 if name in ["Logistic Regression", "Neural Network (MLP)"] and scaler is not None:
-                    y_prob = model.predict_proba(scaler.transform(X_test))[:, 1]
+                    all_model_probs[name] = model.predict_proba(scaler.transform(X_test))[:, 1]
                 else:
-                    y_prob = model.predict_proba(X_test)[:, 1]
-                fpr, tpr, _ = roc_curve(y_test, y_prob)
-                auc_val = roc_auc_score(y_test, y_prob)
-                fig.add_trace(go.Scatter(x=fpr, y=tpr, mode="lines",
-                                         name=f"{name} (AUC={auc_val:.4f})",
-                                         line=dict(color=line_colors[i % len(line_colors)], width=2)))
+                    all_model_probs[name] = model.predict_proba(X_test)[:, 1]
             except Exception:
                 pass
+        # Add Random Forest from saved predictions if model wasn't loaded
+        if "Random Forest" not in all_model_probs and rf_prob is not None:
+            all_model_probs["Random Forest"] = rf_prob
+
+        for i, (name, y_prob) in enumerate(all_model_probs.items()):
+            fpr, tpr, _ = roc_curve(y_test, y_prob)
+            auc_val = roc_auc_score(y_test, y_prob)
+            fig.add_trace(go.Scatter(x=fpr, y=tpr, mode="lines",
+                                     name=f"{name} (AUC={auc_val:.4f})",
+                                     line=dict(color=line_colors[i % len(line_colors)], width=2)))
 
         fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode="lines",
                                  name="Random (AUC=0.5)",
@@ -778,27 +797,23 @@ The dashed gray line represents a random coin-flip model (AUC = 0.5). All five m
 with the ensemble methods (Random Forest, XGBoost) showing the strongest separation between flare and no-flare days.
 """)
 
-        # Confusion Matrix — use best available model (Random Forest is too large for GitHub)
+        # Confusion Matrix — best model (use saved predictions for RF if model not loaded)
         st.subheader("Confusion Matrix — Best Model")
         from sklearn.metrics import confusion_matrix
         cm_model_name = best_model_name
-        if cm_model_name not in models:
-            # Fall back to best available model by F1
-            for fallback in comp_df["F1 Score"].sort_values(ascending=False).index:
-                if fallback in models:
-                    cm_model_name = fallback
-                    break
+        cm_y_pred = None
+
         if cm_model_name in models:
             model = models[cm_model_name]
             if cm_model_name in ["Logistic Regression", "Neural Network (MLP)"] and scaler:
-                y_pred = model.predict(scaler.transform(X_test))
+                cm_y_pred = model.predict(scaler.transform(X_test))
             else:
-                y_pred = model.predict(X_test)
-            cm = confusion_matrix(y_test, y_pred)
+                cm_y_pred = model.predict(X_test)
+        elif cm_model_name == "Random Forest" and rf_pred is not None:
+            cm_y_pred = rf_pred
 
-            if cm_model_name != best_model_name:
-                st.info(f"**Note:** {best_model_name} model file is too large for deployment. "
-                        f"Showing confusion matrix for **{cm_model_name}** (best available).")
+        if cm_y_pred is not None:
+            cm = confusion_matrix(y_test, cm_y_pred)
 
             fig, ax = plt.subplots(figsize=(7, 6))
             sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax,
