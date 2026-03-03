@@ -679,6 +679,7 @@ with tab3:
 - **Missing values:** The pipeline fills all NaN values with 0 (a food/tag/treatment not tracked = absent), so there are no missing values.
 - **Scaling:** `StandardScaler` (zero-mean, unit-variance) applied for Logistic Regression and MLP only. Tree-based models use unscaled features since they are invariant to monotonic transformations.
 - **Class imbalance:** Handled via `class_weight='balanced'` (scikit-learn) and `scale_pos_weight` (XGBoost) rather than resampling, to preserve the original data distribution.
+- **Hyperparameter tuning:** All models (except the Logistic Regression baseline) were tuned using `GridSearchCV` with **5-fold cross-validation** on the training set, scored by F1. The best hyperparameters were selected automatically and used for final test-set evaluation.
 """)
 
     col_a, col_b, col_c = st.columns(3)
