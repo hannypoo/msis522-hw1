@@ -894,6 +894,59 @@ Random Forest is the **best overall model** by F1 score. Its recall of 88.5% mea
 10 actual flare days, while maintaining reasonable precision (77.8%).
 """)
 
+        # --- XGBoost (dedicated section) ---
+        st.subheader("XGBoost (Gradient-Boosted Trees)")
+        st.markdown("""
+**How XGBoost works:** Unlike Random Forest (which trains many trees independently and takes a majority vote),
+XGBoost builds trees **sequentially** — each new tree focuses specifically on correcting the mistakes of the
+previous trees. This "boosting" approach means each tree is small and weak on its own, but the chain of
+corrections produces a powerful final model.
+
+**Hyperparameter tuning:** `GridSearchCV` with **5-fold cross-validation** searched over 4 hyperparameters:
+- `n_estimators`: [100, 200] — number of boosting rounds
+- `max_depth`: [3, 5, 7] — depth of each individual tree (kept shallow to prevent overfitting)
+- `learning_rate`: [0.05, 0.1] — how much each tree contributes (smaller = more conservative)
+- `subsample`: [0.8, 1.0] — fraction of data used per tree
+
+**Best hyperparameters:** `n_estimators=200`, `max_depth=7`, `learning_rate=0.1`, `subsample=0.8`
+""")
+
+        if "XGBoost" in comp_df.index:
+            xgb_metrics = comp_df.loc["XGBoost"]
+            col_x1, col_x2, col_x3, col_x4, col_x5 = st.columns(5)
+            col_x1.metric("Accuracy", f"{xgb_metrics['Accuracy']:.4f}")
+            col_x2.metric("Precision", f"{xgb_metrics['Precision']:.4f}")
+            col_x3.metric("Recall", f"{xgb_metrics['Recall']:.4f}")
+            col_x4.metric("F1 Score", f"{xgb_metrics['F1 Score']:.4f}")
+            col_x5.metric("ROC AUC", f"{xgb_metrics['ROC AUC']:.4f}")
+
+        # XGBoost ROC Curve
+        if "XGBoost" in models:
+            from sklearn.metrics import roc_curve, roc_auc_score
+            xgb_prob = models["XGBoost"].predict_proba(X_test)[:, 1]
+            xgb_fpr, xgb_tpr, _ = roc_curve(y_test, xgb_prob)
+            xgb_auc = roc_auc_score(y_test, xgb_prob)
+            fig_xgb = go.Figure()
+            fig_xgb.add_trace(go.Scatter(x=xgb_fpr, y=xgb_tpr, mode="lines",
+                                          name=f"XGBoost (AUC={xgb_auc:.4f})",
+                                          line=dict(color="#f39c12", width=3)))
+            fig_xgb.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode="lines",
+                                          name="Random (AUC=0.5)",
+                                          line=dict(color="gray", dash="dash")))
+            fig_xgb.update_layout(title="ROC Curve — XGBoost",
+                                   xaxis_title="False Positive Rate",
+                                   yaxis_title="True Positive Rate",
+                                   height=500)
+            st.plotly_chart(fig_xgb, use_container_width=True)
+
+        st.markdown("""
+**Interpretation:** XGBoost achieves the **highest precision** (82.9%) of all models — when it predicts a flare,
+it's right more often than any other model. It also has the **second-highest ROC AUC** (0.7706), nearly matching
+Random Forest. However, its recall (70.6%) is lower, meaning it misses more flare days in exchange for fewer
+false alarms. XGBoost is the best choice when you want to be confident a predicted flare is real;
+Random Forest is better when you want to catch as many flare days as possible.
+""")
+
     else:
         st.warning("No model comparison data found. Run the notebook first.")
 
