@@ -818,6 +818,22 @@ and correctly rules out **{tn:,} out of {tn + fp:,}** no-flare days ({tn/(tn+fp)
 The **{fn:,} missed flares** (bottom-left) are the most concerning — these are days the model said "no flare"
 but the user actually experienced one.
 """)
+
+        # Decision Tree Visualization
+        st.subheader("Decision Tree Visualization")
+        tree_img = FIGURES_DIR / "decision_tree_viz.png"
+        if tree_img.exists():
+            st.image(str(tree_img), use_container_width=True)
+            st.markdown("""
+**How to read this chart:** Each box (node) shows a yes/no question about a feature — if true, follow the left branch;
+if false, follow the right. The color indicates the predicted class: **blue = No Flare**, **orange = Flare**.
+Darker colors mean higher confidence. The top split on `tag_tired` confirms that lifestyle tags are the
+strongest flare signals. The full tree is 20 levels deep with 2,272 leaves — only the top 4 levels are shown here
+for readability.
+""")
+        else:
+            st.info("Decision tree visualization not found. Run the notebook to generate it.")
+
     else:
         st.warning("No model comparison data found. Run the notebook first.")
 
