@@ -920,17 +920,18 @@ corrections produces a powerful final model.
             col_x4.metric("F1 Score", f"{xgb_metrics['F1 Score']:.4f}")
             col_x5.metric("ROC AUC", f"{xgb_metrics['ROC AUC']:.4f}")
 
-        # XGBoost Feature Importance
+        # XGBoost Tree Visualization
         xgb_img = FIGURES_DIR / "xgboost_viz.png"
         if xgb_img.exists():
             st.image(str(xgb_img), use_container_width=True)
 
         st.markdown("""
-**How to read this chart:** Each bar shows how much a feature contributed to XGBoost's predictions (measured by
-gain — the average improvement in accuracy when that feature is used in a split). **Tired** and **Exhausted**
-dominate, consistent with all other models. But notice how XGBoost also picks up on specific treatments
-(Folic Acid, Tramadol, Gabapentin) and foods (Smoothie, Hot Chocolate) that the simpler models missed —
-this is the advantage of sequential boosting, which keeps correcting for residual patterns.
+**How to read this chart:** These are 3 of the 200 boosting stages, each showing the top 2 levels.
+Unlike Random Forest (where trees are independent), XGBoost builds trees **sequentially** — each stage
+corrects the previous ones. Notice how Stage #1 starts with **Tired** (the strongest signal), Stage #100
+shifts to **Exhausted**, and Stage #200 focuses on **Good Sleep** — the model progressively learns
+finer-grained patterns that earlier stages missed, including foods (Chicken, Chocolate), weather (Rain,
+Pressure), and demographics (Age, Female).
 
 XGBoost achieves the **highest precision** (82.9%) of all models — when it predicts a flare, it's right more
 often than any other model. However, its recall (70.6%) is lower than Random Forest, meaning it misses more
