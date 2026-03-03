@@ -659,6 +659,36 @@ with tab2:
 with tab3:
     st.header("🏆 Model Performance")
 
+    # --- 2.1 Data Preparation ---
+    st.subheader("Data Preparation")
+    st.markdown("""
+**Features (X):** 104 predictive columns derived from the preprocessing pipeline:
+- **50 individual food columns** (binary: 1 = user ate that food on this day)
+- **6 food-category rollups** (binary: dairy, grains, fruits, protein, caffeine, sugar)
+- **20 treatment columns** (binary: 1 = user took that treatment)
+- **~14 lifestyle tag columns** (binary: tired, stressed, exhausted, bad sleep, etc.)
+- **Weather** (5 numeric + one-hot weather icons)
+- **Demographics** (age, sex_female, country_us)
+
+**Target (y):** `flare` — binary (0 or 1). A user-day is labeled **1** if the maximum symptom severity that day is ≥ 3 on the 0–4 scale.
+
+**Train/test split:** 70/30 stratified split (`random_state=42`). Stratification ensures the ~68/32 flare ratio is preserved in both sets.
+
+**Preprocessing decisions:**
+- **Encoding:** All categorical variables were already one-hot encoded during the pivot step — no additional encoding needed.
+- **Missing values:** The pipeline fills all NaN values with 0 (a food/tag/treatment not tracked = absent), so there are no missing values.
+- **Scaling:** `StandardScaler` (zero-mean, unit-variance) applied for Logistic Regression and MLP only. Tree-based models use unscaled features since they are invariant to monotonic transformations.
+- **Class imbalance:** Handled via `class_weight='balanced'` (scikit-learn) and `scale_pos_weight` (XGBoost) rather than resampling, to preserve the original data distribution.
+""")
+
+    col_a, col_b, col_c = st.columns(3)
+    train_size = len(df) - len(X_test)
+    col_a.metric("Total Features", f"{len(feature_cols)}")
+    col_b.metric("Train Set", f"{train_size:,} rows (70%)")
+    col_c.metric("Test Set", f"{len(X_test):,} rows (30%)")
+
+    st.divider()
+
     if comp_df is not None:
         st.subheader("Performance Comparison Table")
         st.dataframe(
