@@ -878,6 +878,23 @@ for readability.
             col_r4.metric("F1 Score", f"{rf_metrics['F1 Score']:.4f}")
             col_r5.metric("ROC AUC", f"{rf_metrics['ROC AUC']:.4f}")
 
+        # Random Forest ROC Curve
+        if rf_prob is not None:
+            from sklearn.metrics import roc_curve, roc_auc_score
+            rf_fpr, rf_tpr, _ = roc_curve(y_test, rf_prob)
+            rf_auc = roc_auc_score(y_test, rf_prob)
+            fig_rf = go.Figure()
+            fig_rf.add_trace(go.Scatter(x=rf_fpr, y=rf_tpr, mode="lines",
+                                         name=f"Random Forest (AUC={rf_auc:.4f})",
+                                         line=dict(color="#2ecc71", width=3)))
+            fig_rf.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode="lines",
+                                         name="Random (AUC=0.5)",
+                                         line=dict(color="gray", dash="dash")))
+            fig_rf.update_layout(title="ROC Curve — Random Forest",
+                                  xaxis_title="False Positive Rate",
+                                  yaxis_title="True Positive Rate", height=450)
+            st.plotly_chart(fig_rf, use_container_width=True)
+
         rf_img = FIGURES_DIR / "random_forest_viz.png"
         if rf_img.exists():
             st.image(str(rf_img), use_container_width=True)
@@ -919,6 +936,24 @@ corrections produces a powerful final model.
             col_x3.metric("Recall", f"{xgb_metrics['Recall']:.4f}")
             col_x4.metric("F1 Score", f"{xgb_metrics['F1 Score']:.4f}")
             col_x5.metric("ROC AUC", f"{xgb_metrics['ROC AUC']:.4f}")
+
+        # XGBoost ROC Curve
+        if "XGBoost" in models:
+            from sklearn.metrics import roc_curve, roc_auc_score
+            xgb_prob = models["XGBoost"].predict_proba(X_test)[:, 1]
+            xgb_fpr, xgb_tpr, _ = roc_curve(y_test, xgb_prob)
+            xgb_auc = roc_auc_score(y_test, xgb_prob)
+            fig_xgb = go.Figure()
+            fig_xgb.add_trace(go.Scatter(x=xgb_fpr, y=xgb_tpr, mode="lines",
+                                          name=f"XGBoost (AUC={xgb_auc:.4f})",
+                                          line=dict(color="#f39c12", width=3)))
+            fig_xgb.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode="lines",
+                                          name="Random (AUC=0.5)",
+                                          line=dict(color="gray", dash="dash")))
+            fig_xgb.update_layout(title="ROC Curve — XGBoost",
+                                   xaxis_title="False Positive Rate",
+                                   yaxis_title="True Positive Rate", height=450)
+            st.plotly_chart(fig_xgb, use_container_width=True)
 
         # XGBoost Tree Visualization
         xgb_img = FIGURES_DIR / "xgboost_viz.png"
