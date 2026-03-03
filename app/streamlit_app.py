@@ -765,37 +765,6 @@ The Logistic Regression baseline is the weakest across all metrics, confirming t
 are not enough to capture the complex interactions between lifestyle factors, foods, and flares.
 """)
 
-        # --- Model Comparison Summary ---
-        st.subheader("Model Comparison Summary")
-        st.markdown(f"""
-**Best model: {best_model_name}** with the highest F1 Score ({best_f1:.4f}) and ROC AUC
-({comp_df.loc[best_model_name, 'ROC AUC']:.4f}) across all five models.
-{best_model_name} also dominates in Recall ({comp_df.loc[best_model_name, 'Recall']:.4f}),
-meaning it catches nearly {comp_df.loc[best_model_name, 'Recall']:.0%} of actual flare days — critical
-in a health context where missing a real flare is more costly than a false alarm.
-
-**Were we surprised?** Somewhat. We expected XGBoost to lead, since gradient boosting often outperforms
-bagging on tabular data. However, our feature set is almost entirely binary (food eaten or not, tag present
-or absent), which limits the advantage of boosting's sequential residual correction. Random Forest's
-parallel ensemble of diverse decision trees handles this binary-feature, high-noise domain especially well.
-
-**Trade-offs between models:**
-
-| Model | Strengths | Weaknesses |
-|-------|-----------|------------|
-| **Logistic Regression** | Fast to train, fully interpretable (coefficients = odds ratios), minimal overfitting risk | Weakest performer — linear boundary cannot capture food×lifestyle interactions |
-| **Decision Tree** | Most interpretable (single tree visualized end-to-end), fast inference | Lowest recall; prone to overfitting without pruning |
-| **Random Forest** | Best overall (F1={comp_df.loc['Random Forest','F1 Score']:.4f}, Recall={comp_df.loc['Random Forest','Recall']:.4f}), robust to noise, no scaling needed | Slow to train (200 trees), large model (499 MB), harder to explain than a single tree |
-| **XGBoost** | Strong precision ({comp_df.loc['XGBoost','Precision']:.4f}), compact model, fast inference, built-in regularization | Required more hyperparameter tuning; recall lower than RF |
-| **Neural Network (MLP)** | Can learn non-linear interactions, flexible architecture | Worst AUC among non-baseline models; needs more data to shine; requires scaling; least interpretable |
-
-In summary, **Random Forest is the recommended model** for this task. In a clinical or personal health-tracking
-context, its high recall means fewer missed flare days, and SHAP values (Tab 4) can still provide per-prediction
-explanations to recover some interpretability.
-""")
-
-        st.divider()
-
         # ROC Curves
         st.subheader("ROC Curves")
         from sklearn.metrics import roc_curve, roc_auc_score
@@ -1051,6 +1020,37 @@ curve flattens or starts rising (loss) / dropping (accuracy) while training keep
 overfitting. The gap between the curves shows the model generalizes reasonably but doesn't match the
 tree-based models — neural networks typically need much larger datasets to shine, and our 104 binary
 features don't provide the rich continuous signals that deep learning excels at.
+""")
+
+        st.divider()
+
+        # --- Model Comparison Summary (after all individual model sections) ---
+        st.subheader("Model Comparison Summary")
+        st.markdown(f"""
+**Best model: {best_model_name}** with the highest F1 Score ({best_f1:.4f}) and ROC AUC
+({comp_df.loc[best_model_name, 'ROC AUC']:.4f}) across all five models.
+{best_model_name} also dominates in Recall ({comp_df.loc[best_model_name, 'Recall']:.4f}),
+meaning it catches nearly {comp_df.loc[best_model_name, 'Recall']:.0%} of actual flare days — critical
+in a health context where missing a real flare is more costly than a false alarm.
+
+**Were we surprised?** Somewhat. We expected XGBoost to lead, since gradient boosting often outperforms
+bagging on tabular data. However, our feature set is almost entirely binary (food eaten or not, tag present
+or absent), which limits the advantage of boosting's sequential residual correction. Random Forest's
+parallel ensemble of diverse decision trees handles this binary-feature, high-noise domain especially well.
+
+**Trade-offs between models:**
+
+| Model | Strengths | Weaknesses |
+|-------|-----------|------------|
+| **Logistic Regression** | Fast to train, fully interpretable (coefficients = odds ratios), minimal overfitting risk | Weakest performer — linear boundary cannot capture food×lifestyle interactions |
+| **Decision Tree** | Most interpretable (single tree visualized end-to-end), fast inference | Lowest recall; prone to overfitting without pruning |
+| **Random Forest** | Best overall (F1={comp_df.loc['Random Forest','F1 Score']:.4f}, Recall={comp_df.loc['Random Forest','Recall']:.4f}), robust to noise, no scaling needed | Slow to train (200 trees), large model (499 MB), harder to explain than a single tree |
+| **XGBoost** | Strong precision ({comp_df.loc['XGBoost','Precision']:.4f}), compact model, fast inference, built-in regularization | Required more hyperparameter tuning; recall lower than RF |
+| **Neural Network (MLP)** | Can learn non-linear interactions, flexible architecture | Worst AUC among non-baseline models; needs more data to shine; requires scaling; least interpretable |
+
+In summary, **Random Forest is the recommended model** for this task. In a clinical or personal health-tracking
+context, its high recall means fewer missed flare days, and SHAP values (Tab 4) can still provide per-prediction
+explanations to recover some interpretability.
 """)
 
     else:
