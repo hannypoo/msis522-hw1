@@ -740,11 +740,21 @@ with tab3:
                               height=500)
         st.plotly_chart(fig_rf, use_container_width=True)
 
+    # Random Forest tree visualization
+    rf_img = FIGURES_DIR / "random_forest_viz.png"
+    if rf_img.exists():
+        st.image(str(rf_img), use_container_width=True)
+
     st.markdown("""
-**Interpretation:** Random Forest is the **best overall model** by F1 score. With unlimited depth and 200 trees,
-it captures complex interactions between lifestyle tags, foods, and weather that simpler models miss.
-Its recall of 88.5% means it catches nearly 9 out of 10 actual flare days, while maintaining reasonable
-precision (77.8%) — making it the most reliable model for identifying flare risk.
+**How to read this chart:** A Random Forest is an ensemble of many individual decision trees — here we show
+3 of the 200 trees, each displaying only the top 2 levels. Notice how each tree splits on **different features**
+(Tree #1 starts with Tylenol, Tree #51 with Coffee, Tree #151 with Exhausted). This diversity is by design:
+each tree is trained on a random subset of the data and features, so they each learn different patterns.
+The forest's final prediction is a **majority vote** across all 200 trees, which is why it outperforms
+any single decision tree — it combines many different perspectives into one robust prediction.
+
+Random Forest is the **best overall model** by F1 score. Its recall of 88.5% means it catches nearly 9 out of
+10 actual flare days, while maintaining reasonable precision (77.8%).
 """)
 
     st.divider()
