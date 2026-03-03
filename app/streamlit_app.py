@@ -743,21 +743,32 @@ with tab3:
                           height=600)
         st.plotly_chart(fig, use_container_width=True)
 
-        # Confusion Matrix
+        # Confusion Matrix — use best available model (Random Forest is too large for GitHub)
         st.subheader("Confusion Matrix — Best Model")
         from sklearn.metrics import confusion_matrix
-        if best_model_name in models:
-            model = models[best_model_name]
-            if best_model_name in ["Logistic Regression", "Neural Network (MLP)"] and scaler:
+        cm_model_name = best_model_name
+        if cm_model_name not in models:
+            # Fall back to best available model by F1
+            for fallback in comp_df["F1 Score"].sort_values(ascending=False).index:
+                if fallback in models:
+                    cm_model_name = fallback
+                    break
+        if cm_model_name in models:
+            model = models[cm_model_name]
+            if cm_model_name in ["Logistic Regression", "Neural Network (MLP)"] and scaler:
                 y_pred = model.predict(scaler.transform(X_test))
             else:
                 y_pred = model.predict(X_test)
             cm = confusion_matrix(y_test, y_pred)
 
+            if cm_model_name != best_model_name:
+                st.info(f"**Note:** {best_model_name} model file is too large for deployment. "
+                        f"Showing confusion matrix for **{cm_model_name}** (best available).")
+
             fig, ax = plt.subplots(figsize=(7, 6))
             sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax,
                         xticklabels=["No Flare", "Flare"], yticklabels=["No Flare", "Flare"])
-            ax.set_title(f"Confusion Matrix — {best_model_name}", fontsize=14, fontweight="bold")
+            ax.set_title(f"Confusion Matrix — {cm_model_name}", fontsize=14, fontweight="bold")
             ax.set_ylabel("Actual")
             ax.set_xlabel("Predicted")
             plt.tight_layout()
