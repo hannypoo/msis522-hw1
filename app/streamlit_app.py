@@ -49,7 +49,7 @@ def load_models():
         ("Decision Tree", "decision_tree.joblib"),
         ("Random Forest", "random_forest.joblib"),
         ("XGBoost", "xgboost.joblib"),
-        ("Neural Network (MLP)", "mlp_neural_net.joblib"),
+        # MLP now uses Keras — predictions loaded separately via load_mlp_predictions()
     ]:
         path = MODELS_DIR / fname
         if path.exists():
@@ -79,6 +79,17 @@ def load_rf_predictions():
 
 
 @st.cache_data
+def load_mlp_predictions():
+    """Load saved MLP predictions (avoids TensorFlow dependency on Streamlit Cloud)."""
+    try:
+        y_pred = np.load(DATA_DIR / "mlp_predictions.npy")
+        y_prob = np.load(DATA_DIR / "mlp_probabilities.npy")
+        return y_pred, y_prob
+    except Exception:
+        return None, None
+
+
+@st.cache_data
 def load_shap_data():
     try:
         shap_values = np.load(DATA_DIR / "shap_values.npy")
@@ -96,6 +107,7 @@ try:
     comp_df = load_comparison()
     shap_values, shap_sample, shap_expected = load_shap_data()
     rf_pred, rf_prob = load_rf_predictions()
+    mlp_pred, mlp_prob = load_mlp_predictions()
     data_loaded = True
 except Exception as e:
     data_loaded = False
@@ -772,6 +784,9 @@ are not enough to capture the complex interactions between lifestyle factors, fo
         # Add Random Forest from saved predictions if model wasn't loaded
         if "Random Forest" not in all_model_probs and rf_prob is not None:
             all_model_probs["Random Forest"] = rf_prob
+        # Add MLP from saved predictions (avoids TensorFlow dependency)
+        if "Neural Network (MLP)" not in all_model_probs and mlp_prob is not None:
+            all_model_probs["Neural Network (MLP)"] = mlp_prob
 
         for i, (name, y_prob) in enumerate(all_model_probs.items()):
             fpr, tpr, _ = roc_curve(y_test, y_prob)
@@ -971,6 +986,40 @@ Pressure), and demographics (Age, Female).
 XGBoost achieves the **highest precision** (82.9%) of all models — when it predicts a flare, it's right more
 often than any other model. However, its recall (70.6%) is lower than Random Forest, meaning it misses more
 flare days in exchange for fewer false alarms.
+""")
+
+        # --- Neural Network MLP (dedicated section) ---
+        st.subheader("Neural Network — MLP (Keras/TensorFlow)")
+        st.markdown("""
+**Architecture:** Input (104 features) → Dense(128, ReLU) → Dense(64, ReLU) → Dense(1, Sigmoid)
+
+- **Loss function:** Binary cross-entropy
+- **Optimizer:** Adam
+- **Class imbalance:** Handled via `class_weight`
+- **Training:** 50 epochs, batch size 256, 15% validation split
+""")
+
+        if "Neural Network (MLP)" in comp_df.index:
+            mlp_metrics = comp_df.loc["Neural Network (MLP)"]
+            col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
+            col_m1.metric("Accuracy", f"{mlp_metrics['Accuracy']:.4f}")
+            col_m2.metric("Precision", f"{mlp_metrics['Precision']:.4f}")
+            col_m3.metric("Recall", f"{mlp_metrics['Recall']:.4f}")
+            col_m4.metric("F1 Score", f"{mlp_metrics['F1 Score']:.4f}")
+            col_m5.metric("ROC AUC", f"{mlp_metrics['ROC AUC']:.4f}")
+
+        # Training history
+        mlp_history_img = FIGURES_DIR / "mlp_training_history.png"
+        if mlp_history_img.exists():
+            st.image(str(mlp_history_img), use_container_width=True)
+
+        st.markdown("""
+**How to read this chart:** The left panel shows the loss (binary cross-entropy) over training epochs —
+both the training set (blue) and validation set (red). The right panel shows accuracy. When the validation
+curve flattens or starts rising (loss) / dropping (accuracy) while training keeps improving, that signals
+overfitting. The gap between the curves shows the model generalizes reasonably but doesn't match the
+tree-based models — neural networks typically need much larger datasets to shine, and our 104 binary
+features don't provide the rich continuous signals that deep learning excels at.
 """)
 
     else:
