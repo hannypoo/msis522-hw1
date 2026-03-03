@@ -723,6 +723,15 @@ flare day (false negative) is worse than a false alarm, so models with higher re
                           yaxis_title="Score", height=500)
         st.plotly_chart(fig, use_container_width=True)
 
+        st.markdown("""
+**Interpretation:** This bar chart makes it easy to spot each model's strengths and weaknesses at a glance.
+Notice that **Precision** (how many predicted flares were real) and **Recall** (how many real flares were caught)
+often move in opposite directions — the MLP and Random Forest sacrifice some precision to achieve very high recall,
+while XGBoost and Decision Tree are more conservative with higher precision but lower recall.
+The Logistic Regression baseline is the weakest across all metrics, confirming that simple linear boundaries
+are not enough to capture the complex interactions between lifestyle factors, foods, and flares.
+""")
+
         # ROC Curves
         st.subheader("ROC Curves")
         from sklearn.metrics import roc_curve, roc_auc_score
