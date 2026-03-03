@@ -699,7 +699,6 @@ with tab3:
 
         best_model_name = comp_df["F1 Score"].idxmax()
         best_f1 = comp_df.loc[best_model_name, "F1 Score"]
-        st.success(f"**Best model by F1 Score:** {best_model_name} ({best_f1:.4f})")
 
         baseline = comp_df.loc["Logistic Regression"]
         best = comp_df.loc[best_model_name]
