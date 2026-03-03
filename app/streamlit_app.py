@@ -701,13 +701,22 @@ with tab3:
         best_f1 = comp_df.loc[best_model_name, "F1 Score"]
         st.success(f"**Best model by F1 Score:** {best_model_name} ({best_f1:.4f})")
 
-        baseline_f1 = comp_df.loc["Logistic Regression", "F1 Score"]
+        baseline = comp_df.loc["Logistic Regression"]
+        best = comp_df.loc[best_model_name]
+        best_acc_name = comp_df["Accuracy"].idxmax()
+        best_recall_name = comp_df["Recall"].idxmax()
+        best_prec_name = comp_df["Precision"].idxmax()
+        best_auc_name = comp_df["ROC AUC"].idxmax()
         st.markdown(f"""
-**Interpretation:** The Logistic Regression baseline achieves an F1 of {baseline_f1:.4f}, which every subsequent model
-beats — confirming that the non-linear patterns in this data (interaction effects between tags, foods, and weather)
-benefit from more flexible model architectures. {best_model_name} leads with an F1 of {best_f1:.4f},
-a **+{best_f1 - baseline_f1:.2f}** improvement over baseline. Recall is especially important here: missing a real
-flare day (false negative) is worse than a false alarm, so models with higher recall are preferred.
+**Interpretation:** The table reports five metrics for each model on the held-out test set:
+
+- **Accuracy** — overall % correct. {best_acc_name} leads at {comp_df.loc[best_acc_name, 'Accuracy']:.1%}, but accuracy can be misleading with imbalanced classes.
+- **Precision** — when the model predicts "flare," how often is it right? {best_prec_name} is highest ({comp_df.loc[best_prec_name, 'Precision']:.1%}), meaning fewer false alarms.
+- **Recall** — of all actual flare days, how many did the model catch? {best_recall_name} leads ({comp_df.loc[best_recall_name, 'Recall']:.1%}). Missing a real flare (false negative) is worse than a false alarm, so higher recall is preferred.
+- **F1 Score** — the harmonic mean of Precision and Recall, balancing both. {best_model_name} leads ({best_f1:.4f}).
+- **ROC AUC** — how well the model separates flare from no-flare across all thresholds. {best_auc_name} is strongest ({comp_df.loc[best_auc_name, 'ROC AUC']:.4f}).
+
+The Logistic Regression baseline (F1 = {baseline['F1 Score']:.4f}, AUC = {baseline['ROC AUC']:.4f}) is outperformed by every other model, confirming that the non-linear interactions between lifestyle tags, foods, and weather benefit from more flexible architectures like ensembles and neural networks.
 """)
 
         # Bar chart comparison
