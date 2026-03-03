@@ -920,31 +920,21 @@ corrections produces a powerful final model.
             col_x4.metric("F1 Score", f"{xgb_metrics['F1 Score']:.4f}")
             col_x5.metric("ROC AUC", f"{xgb_metrics['ROC AUC']:.4f}")
 
-        # XGBoost ROC Curve
-        if "XGBoost" in models:
-            from sklearn.metrics import roc_curve, roc_auc_score
-            xgb_prob = models["XGBoost"].predict_proba(X_test)[:, 1]
-            xgb_fpr, xgb_tpr, _ = roc_curve(y_test, xgb_prob)
-            xgb_auc = roc_auc_score(y_test, xgb_prob)
-            fig_xgb = go.Figure()
-            fig_xgb.add_trace(go.Scatter(x=xgb_fpr, y=xgb_tpr, mode="lines",
-                                          name=f"XGBoost (AUC={xgb_auc:.4f})",
-                                          line=dict(color="#f39c12", width=3)))
-            fig_xgb.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode="lines",
-                                          name="Random (AUC=0.5)",
-                                          line=dict(color="gray", dash="dash")))
-            fig_xgb.update_layout(title="ROC Curve — XGBoost",
-                                   xaxis_title="False Positive Rate",
-                                   yaxis_title="True Positive Rate",
-                                   height=500)
-            st.plotly_chart(fig_xgb, use_container_width=True)
+        # XGBoost Feature Importance
+        xgb_img = FIGURES_DIR / "xgboost_viz.png"
+        if xgb_img.exists():
+            st.image(str(xgb_img), use_container_width=True)
 
         st.markdown("""
-**Interpretation:** XGBoost achieves the **highest precision** (82.9%) of all models — when it predicts a flare,
-it's right more often than any other model. It also has the **second-highest ROC AUC** (0.7706), nearly matching
-Random Forest. However, its recall (70.6%) is lower, meaning it misses more flare days in exchange for fewer
-false alarms. XGBoost is the best choice when you want to be confident a predicted flare is real;
-Random Forest is better when you want to catch as many flare days as possible.
+**How to read this chart:** Each bar shows how much a feature contributed to XGBoost's predictions (measured by
+gain — the average improvement in accuracy when that feature is used in a split). **Tired** and **Exhausted**
+dominate, consistent with all other models. But notice how XGBoost also picks up on specific treatments
+(Folic Acid, Tramadol, Gabapentin) and foods (Smoothie, Hot Chocolate) that the simpler models missed —
+this is the advantage of sequential boosting, which keeps correcting for residual patterns.
+
+XGBoost achieves the **highest precision** (82.9%) of all models — when it predicts a flare, it's right more
+often than any other model. However, its recall (70.6%) is lower than Random Forest, meaning it misses more
+flare days in exchange for fewer false alarms.
 """)
 
     else:
