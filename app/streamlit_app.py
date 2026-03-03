@@ -702,6 +702,53 @@ with tab3:
 
     st.divider()
 
+    # --- Random Forest (dedicated section) ---
+    st.subheader("Random Forest")
+    st.markdown("""
+**Hyperparameter tuning:** `GridSearchCV` with **5-fold cross-validation** searched over:
+- `n_estimators`: [100, 200]
+- `max_depth`: [10, 20, None]
+- `min_samples_split`: [5, 10]
+
+**Best hyperparameters:** `n_estimators=200`, `max_depth=None` (unlimited), `min_samples_split=5`
+""")
+
+    if comp_df is not None and "Random Forest" in comp_df.index:
+        rf_metrics = comp_df.loc["Random Forest"]
+        col_r1, col_r2, col_r3, col_r4, col_r5 = st.columns(5)
+        col_r1.metric("Accuracy", f"{rf_metrics['Accuracy']:.4f}")
+        col_r2.metric("Precision", f"{rf_metrics['Precision']:.4f}")
+        col_r3.metric("Recall", f"{rf_metrics['Recall']:.4f}")
+        col_r4.metric("F1 Score", f"{rf_metrics['F1 Score']:.4f}")
+        col_r5.metric("ROC AUC", f"{rf_metrics['ROC AUC']:.4f}")
+
+    # Random Forest ROC Curve
+    if rf_prob is not None:
+        from sklearn.metrics import roc_curve, roc_auc_score
+        rf_fpr, rf_tpr, _ = roc_curve(y_test, rf_prob)
+        rf_auc = roc_auc_score(y_test, rf_prob)
+        fig_rf = go.Figure()
+        fig_rf.add_trace(go.Scatter(x=rf_fpr, y=rf_tpr, mode="lines",
+                                     name=f"Random Forest (AUC={rf_auc:.4f})",
+                                     line=dict(color="#2ecc71", width=3)))
+        fig_rf.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode="lines",
+                                     name="Random (AUC=0.5)",
+                                     line=dict(color="gray", dash="dash")))
+        fig_rf.update_layout(title="ROC Curve — Random Forest",
+                              xaxis_title="False Positive Rate",
+                              yaxis_title="True Positive Rate",
+                              height=500)
+        st.plotly_chart(fig_rf, use_container_width=True)
+
+    st.markdown("""
+**Interpretation:** Random Forest is the **best overall model** by F1 score. With unlimited depth and 200 trees,
+it captures complex interactions between lifestyle tags, foods, and weather that simpler models miss.
+Its recall of 88.5% means it catches nearly 9 out of 10 actual flare days, while maintaining reasonable
+precision (77.8%) — making it the most reliable model for identifying flare risk.
+""")
+
+    st.divider()
+
     if comp_df is not None:
         st.subheader("Performance Comparison Table")
         st.dataframe(
