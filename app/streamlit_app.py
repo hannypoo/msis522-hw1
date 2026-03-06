@@ -1128,6 +1128,43 @@ Some feature names are abbreviated. Here's what they represent and why they matt
 flare predictions far more than any individual food. This aligns with the statistical analysis in the notebook,
 where zero individual foods survived Bonferroni correction but six lifestyle tags did.
 """)
+        # ── Waterfall Plot: High-Risk Individual ──
+        st.markdown("---")
+        st.subheader("Waterfall Plot — High-Risk Flare Individual")
+        st.markdown("This shows how each feature contributed to the prediction for a single high-risk individual from the test set.")
+
+        xgb_wf = models.get("XGBoost")
+        if xgb_wf is not None:
+            xgb_probs_sample = xgb_wf.predict_proba(shap_sample)[:, 1]
+            high_risk_idx = int(np.argmax(xgb_probs_sample))
+            pred_prob = xgb_probs_sample[high_risk_idx]
+            actual_label = y_test.loc[shap_sample.index[high_risk_idx]] if shap_sample.index[high_risk_idx] in y_test.index else None
+
+            explanation = shap.Explanation(
+                values=shap_values[high_risk_idx],
+                base_values=shap_expected,
+                data=shap_display.iloc[high_risk_idx],
+                feature_names=clean_names
+            )
+
+            title = f"Predicted: {pred_prob:.0%} flare"
+            if actual_label is not None:
+                title += f", Actual: {'Flare' if actual_label == 1 else 'No Flare'}"
+
+            fig, ax = plt.subplots(figsize=(12, 8))
+            shap.plots.waterfall(explanation, max_display=15, show=False)
+            plt.title(f"SHAP Waterfall — High-Risk Individual ({title})", fontsize=13, fontweight="bold")
+            plt.tight_layout()
+            st.pyplot(fig)
+            plt.close()
+
+            st.markdown("""
+**How to read this:** Starting from the baseline expectation (bottom), each bar shows how a single feature
+pushes the prediction higher (red, toward flare) or lower (blue, away from flare). The features are ordered
+by impact magnitude. For this individual, being on **gabapentin**, logging **tired** and **poor sleep**, and
+being **stressed** are the biggest drivers pushing the prediction to near-certain flare.
+""")
+
     else:
         st.info("SHAP data not yet available. Run the notebook to generate SHAP values.")
 
