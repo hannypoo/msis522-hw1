@@ -1086,6 +1086,48 @@ with tab4:
             plt.tight_layout()
             st.pyplot(fig)
             plt.close()
+
+        # ── SHAP Chart Explanations ──
+        st.markdown("---")
+        st.subheader("Reading the SHAP Charts")
+
+        st.markdown("""
+**Beeswarm Plot (left):** Each dot is one person-day from the test set. The horizontal position shows
+how much that feature pushed the prediction toward flare (right) or away from flare (left).
+Color indicates the feature's actual value — **red = high**, **blue = low**. For example, when
+*Tag:Tired* is high (red, meaning the user logged "tired"), the dots cluster far to the right,
+strongly pushing the model toward predicting a flare. When it's low (blue, not tired), dots
+push left — away from flare.
+
+**Bar Plot (right):** Ranks features by their average absolute impact on predictions (mean |SHAP value|).
+Taller bars = more important features overall, regardless of direction. *Tag:Tired* and *Age* dominate,
+followed by *Tag:Stressed* and *Sex Female*.
+""")
+
+        st.markdown("---")
+        st.subheader("What Do These Features Mean?")
+        st.markdown("""
+Some feature names are abbreviated. Here's what they represent and why they matter:
+
+| Feature | What It Is | Why It Shows Up |
+|---------|-----------|-----------------|
+| **Tag:Tired / Stressed / Exhausted** | Lifestyle tags the user logged that day | These are the strongest flare predictors — fatigue and stress are well-documented autoimmune triggers |
+| **Tag:Good Sleep / Poor Sleep** | Sleep quality logged that day | Good sleep is protective (pushes *away* from flare); poor sleep increases flare risk |
+| **Age** | User's age in years | Captures baseline health differences across age groups |
+| **Sex Female** | User identified as female | Autoimmune conditions disproportionately affect women |
+| **W:Humidity** | Weather humidity (%) that day | Humidity changes can trigger joint pain and inflammation — a known phenomenon in rheumatology |
+| **W:Pressure** | Barometric pressure (hPa) that day | Pressure drops are associated with increased joint/muscle pain in chronic illness patients. This is well-supported by [clinical research](https://pubmed.ncbi.nlm.nih.gov/25420680/) |
+| **Tx:Gabapentin / Cymbalta / Tramadol** | Prescription medications (nerve pain, SNRI, opioid) | These act as **proxies for disease severity** — patients on stronger medications tend to have more flares |
+| **Tx:Naproxen** | NSAID (anti-inflammatory) | Signals active pain/inflammation that day |
+| **Tx:Folic Acid** | Supplement often co-prescribed with methotrexate | Indicates autoimmune treatment regimen |
+| **Cat:Caffeine / Protein / Dairy** | Food categories (aggregated) | Broad dietary patterns; small individual effects |
+| **Coffee / Tea / Water / Salad** | Individual food items | Very small SHAP values — consistent with our finding that **no single food reliably predicts flares** |
+| **Country Us** | User located in the US | Proxy for healthcare system and lifestyle differences — not directly causal |
+
+**Bottom line:** Lifestyle factors (sleep, stress, fatigue) and disease severity indicators (medications) drive
+flare predictions far more than any individual food. This aligns with the statistical analysis in the notebook,
+where zero individual foods survived Bonferroni correction but six lifestyle tags did.
+""")
     else:
         st.info("SHAP data not yet available. Run the notebook to generate SHAP values.")
 
