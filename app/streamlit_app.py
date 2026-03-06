@@ -1328,6 +1328,14 @@ being **stressed** are the biggest drivers pushing the prediction to near-certai
                     plt.tight_layout()
                     st.pyplot(fig)
                     plt.close()
+
+                    st.caption(
+                        "**Note:** SHAP shows how every feature affects the prediction — including features "
+                        "you didn't select. A value of **0** (absent) still matters: for example, "
+                        "*not* being tired (Tag:Tired = 0) pushes the prediction away from flare, "
+                        "while *being* tired (Tag:Tired = 1) pushes it toward flare. "
+                        "Red bars increase flare risk, blue bars decrease it."
+                    )
                 except Exception as e:
                     st.warning(f"Could not generate SHAP waterfall: {e}")
 
