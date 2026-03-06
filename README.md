@@ -23,7 +23,7 @@ As someone with **hypermobile Ehlers-Danlos Syndrome (hEDS)** and **POTS**, I'm 
 ├── notebooks/hw1_analysis.ipynb   # Main notebook (Parts 1-3)
 ├── src/data_preprocessing.py      # Data loading & feature engineering
 ├── app/streamlit_app.py           # Streamlit app (Part 4)
-├── models/                        # Saved trained models (joblib)
+├── models/                        # Saved trained models (joblib/keras)
 ├── data/                          # Processed parquet files
 ├── figures/                       # Saved visualizations
 ├── requirements.txt
@@ -69,4 +69,8 @@ streamlit run app/streamlit_app.py
 | Decision Tree | GridSearchCV (max_depth, min_samples_leaf, criterion) |
 | Random Forest | GridSearchCV (n_estimators, max_depth, min_samples_split) |
 | XGBoost | GridSearchCV (n_estimators, max_depth, learning_rate, subsample) |
-| MLP Neural Network | GridSearchCV (hidden_layer_sizes, activation, alpha) |
+| MLP Neural Network | Keras/TensorFlow (128→64→1, early stopping) |
+
+## Note on Large Files
+
+`models/random_forest.joblib` exceeds GitHub's 100MB file size limit and is excluded from the repository. To regenerate it, run all cells in the notebook — the Random Forest model will be retrained and saved automatically. All other models are included in the repo.
